@@ -33,9 +33,10 @@ service cloud.firestore {
 
     // إنشاء اشتراك تجريبي فقط: وثيقة واحدة لكل مستخدم،
     // خصائص trial صارمة، ومدى زمني يحترم أيام التجربة.
-    // ⭐ الحد الأقصى الآن ديناميكي عبر Remote Config (trial_days)؛
-    // قواعد Firestore لا تستطيع قراءته، لذا نضع حداً أقصى ثابتاً
-    // يطابق حدّ الكود الأقصى لأيام التجربة (14 يوماً) + يوم سماح.
+    // ⭐ الحد الأقصى ثابت 8 أيام (7 أيام تجربة + يوم سماح) —
+    // أقل من حد Remote Config (14 يوماً) لمنع إساءة الاستخدام.
+    // قواعد Firestore لا تستطيع قراءة Remote Config، لذا نضع حداً
+    // أقصى صارماً هنا يطابق نية العمل (7 أيام) مع يوم سماح.
     // كما أن start_date محصور في الماضي القريب (يومان سماح) حتى
     // لا يُمنح تاريخ بداية في المستقبل البعيد.
     function isValidTrialCreate(data) {
@@ -49,7 +50,7 @@ service cloud.firestore {
         && data.start_date <= request.time
         && data.start_date >= request.time + duration.value(-2, 'd')
         && data.end_date >= request.time
-        && data.end_date <= request.time + duration.value(15, 'd');
+        && data.end_date <= request.time + duration.value(8, 'd');
     }
 
     match /users/{userId} {

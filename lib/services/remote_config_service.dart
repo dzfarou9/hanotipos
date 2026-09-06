@@ -12,9 +12,9 @@ class RemoteConfigService {
 
   static const String trialDaysKey = 'trial_days';
   static const int minTrialDays = 0;
-  // ⭐ M-11: سقف صارم للتجربة (14 يوماً) — قيمة Remote Config لا يجب أن
-  // تمنح تجربة سنة كاملة عن طريق الخطأ/التلاعب.
-  static const int maxTrialDays = 14;
+  // ⭐ M-11: سقف صارم للتجربة (7 أيام) — يطابق نية العمل وقواعد Firestore.
+  // القيمة المنشورة في Remote Config يجب أن تكون 7؛ أي قيمة أعلى تُقصّ إلى 7.
+  static const int maxTrialDays = 7;
 
   FirebaseRemoteConfig? _remoteConfig;
 

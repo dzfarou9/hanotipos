@@ -689,8 +689,10 @@ try {
           .collection(FirebaseConfig.productsCollection)
           .where('user_id', isEqualTo: userId);
 
-      // ⭐ إن لم يكن الفهرس المركّب منشوراً بعد، نتراجع إلى سحب كامل
-      // بدل أن نفشل بصمت (الاستعلام التزايدي يتطلب فهرساً مركّباً).
+      // ⭐ سحب تزايدي: يحتاج فهرساً مركّباً (user_id + updated_at).
+      // إن فشل بـ failed-precondition يعني غياب الفهرس — نُسجّل التحذير
+      // ونتراجع إلى سحب كامل محدود. أي خطأ آخر (شبكة/صلاحيات)
+      // لا يستحق التراجع بل يُعاد رميه.
       QuerySnapshot<Map<String, dynamic>> snapshot;
       if (lastSync != null) {
         try {
@@ -699,12 +701,19 @@ try {
                 .limit(500)
                 .get(),
           );
-        } catch (e) {
-          AppConfig.log('⚠️ Incremental query failed, falling back to full pull: $e');
-          snapshot = await NetworkService.readWithRetry(() => collection
-                .limit(500)
-                .get(),
-          );
+        } on FirebaseException catch (e) {
+          if (e.code == 'failed-precondition') {
+            AppConfig.logError(
+                '⚠️ MISSING INDEX for ${FirebaseConfig.productsCollection} '
+                '(user_id + updated_at). Falling back to full pull. '
+                'Deploy firestore.indexes.json immediately.', e);
+            snapshot = await NetworkService.readWithRetry(() => collection
+                  .limit(500)
+                  .get(),
+            );
+          } else {
+            rethrow;
+          }
         }
       } else {
         snapshot = await NetworkService.readWithRetry(() => collection
@@ -756,7 +765,10 @@ Future<List<Sale>> getSalesSimple({DateTime? lastSync}) async {
           .collection(FirebaseConfig.salesCollection)
           .where('user_id', isEqualTo: userId);
 
-      // ⭐ إن لم يكن الفهرس المركّب منشوراً بعد، نتراجع إلى سحب كامل.
+      // ⭐ سحب تزايدي: يحتاج فهرساً مركّباً (user_id + updated_at).
+      // إن فشل بـ failed-precondition يعني غياب الفهرس — نُسجّل التحذير
+      // ونتراجع إلى سحب كامل محدود. أي خطأ آخر (شبكة/صلاحيات)
+      // لا يستحق التراجع بل يُعاد رميه.
       QuerySnapshot<Map<String, dynamic>> snapshot;
       if (lastSync != null) {
         try {
@@ -765,12 +777,19 @@ Future<List<Sale>> getSalesSimple({DateTime? lastSync}) async {
                 .limit(500)
                 .get(),
           );
-        } catch (e) {
-          AppConfig.log('⚠️ Incremental query failed, falling back to full pull: $e');
-          snapshot = await NetworkService.readWithRetry(() => collection
-                .limit(500)
-                .get(),
-          );
+        } on FirebaseException catch (e) {
+          if (e.code == 'failed-precondition') {
+            AppConfig.logError(
+                '⚠️ MISSING INDEX for ${FirebaseConfig.salesCollection} '
+                '(user_id + updated_at). Falling back to full pull. '
+                'Deploy firestore.indexes.json immediately.', e);
+            snapshot = await NetworkService.readWithRetry(() => collection
+                  .limit(500)
+                  .get(),
+            );
+          } else {
+            rethrow;
+          }
         }
       } else {
         snapshot = await NetworkService.readWithRetry(() => collection
@@ -1573,7 +1592,10 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
           .collection(FirebaseConfig.inventoryMovementsCollection)
           .where('user_id', isEqualTo: userId);
 
-      // ⭐ إن لم يكن الفهرس المركّب منشوراً بعد، نتراجع إلى سحب كامل.
+      // ⭐ سحب تزايدي: يحتاج فهرساً مركّباً (user_id + updated_at).
+      // إن فشل بـ failed-precondition يعني غياب الفهرس — نُسجّل التحذير
+      // ونتراجع إلى سحب كامل محدود. أي خطأ آخر (شبكة/صلاحيات)
+      // لا يستحق التراجع بل يُعاد رميه.
       QuerySnapshot<Map<String, dynamic>> snapshot;
       if (lastSync != null) {
         try {
@@ -1582,12 +1604,19 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
                 .limit(500)
                 .get(),
           );
-        } catch (e) {
-          AppConfig.log('⚠️ Incremental query failed, falling back to full pull: $e');
-          snapshot = await NetworkService.readWithRetry(() => collection
-                .limit(500)
-                .get(),
-          );
+        } on FirebaseException catch (e) {
+          if (e.code == 'failed-precondition') {
+            AppConfig.logError(
+                '⚠️ MISSING INDEX for ${FirebaseConfig.inventoryMovementsCollection} '
+                '(user_id + updated_at). Falling back to full pull. '
+                'Deploy firestore.indexes.json immediately.', e);
+            snapshot = await NetworkService.readWithRetry(() => collection
+                  .limit(500)
+                  .get(),
+            );
+          } else {
+            rethrow;
+          }
         }
       } else {
         snapshot = await NetworkService.readWithRetry(() => collection
@@ -1765,8 +1794,20 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
         .collection(FirebaseConfig.suppliersCollection)
         .where('user_id', isEqualTo: uid);
     if (lastSync != null) {
-      query = query.where('updated_at', isGreaterThan: Timestamp.fromDate(lastSync));
+      try {
+        query = query.where('updated_at', isGreaterThan: Timestamp.fromDate(lastSync));
+      } on FirebaseException catch (e) {
+        if (e.code == 'failed-precondition') {
+          AppConfig.logError(
+              '⚠️ MISSING INDEX for ${FirebaseConfig.suppliersCollection} '
+              '(user_id + updated_at). Falling back to full pull. '
+              'Deploy firestore.indexes.json immediately.', e);
+        } else {
+          rethrow;
+        }
+      }
     }
+    query = query.limit(500);
     final snap = await query.get();
     return snap.docs.map((d) => Supplier.fromFirestore(d)).toList();
   }
@@ -1860,8 +1901,16 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
             .where('updated_at', isGreaterThan: lastSync)
             .limit(500)
             .get());
-      } catch (e) {
-        snapshot = await NetworkService.readWithRetry(() => collection.limit(500).get());
+      } on FirebaseException catch (e) {
+        if (e.code == 'failed-precondition') {
+          AppConfig.logError(
+              '⚠️ MISSING INDEX for ${FirebaseConfig.customersCollection} '
+              '(user_id + updated_at). Falling back to full pull. '
+              'Deploy firestore.indexes.json immediately.', e);
+          snapshot = await NetworkService.readWithRetry(() => collection.limit(500).get());
+        } else {
+          rethrow;
+        }
       }
     } else {
       snapshot = await NetworkService.readWithRetry(() => collection.limit(500).get());
@@ -1943,8 +1992,16 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
             .where('updated_at', isGreaterThan: lastSync)
             .limit(500)
             .get());
-      } catch (e) {
-        snapshot = await NetworkService.readWithRetry(() => collection.limit(500).get());
+      } on FirebaseException catch (e) {
+        if (e.code == 'failed-precondition') {
+          AppConfig.logError(
+              '⚠️ MISSING INDEX for ${FirebaseConfig.debtTransactionsCollection} '
+              '(user_id + updated_at). Falling back to full pull. '
+              'Deploy firestore.indexes.json immediately.', e);
+          snapshot = await NetworkService.readWithRetry(() => collection.limit(500).get());
+        } else {
+          rethrow;
+        }
       }
     } else {
       snapshot = await NetworkService.readWithRetry(() => collection.limit(500).get());
@@ -2024,8 +2081,20 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
         .collection(FirebaseConfig.purchasesCollection)
         .where('user_id', isEqualTo: uid);
     if (lastSync != null) {
-      query = query.where('updated_at', isGreaterThan: Timestamp.fromDate(lastSync));
+      try {
+        query = query.where('updated_at', isGreaterThan: Timestamp.fromDate(lastSync));
+      } on FirebaseException catch (e) {
+        if (e.code == 'failed-precondition') {
+          AppConfig.logError(
+              '⚠️ MISSING INDEX for ${FirebaseConfig.purchasesCollection} '
+              '(user_id + updated_at). Falling back to full pull. '
+              'Deploy firestore.indexes.json immediately.', e);
+        } else {
+          rethrow;
+        }
+      }
     }
+    query = query.limit(500);
     final snap = await query.get();
     return snap.docs.map((d) => Purchase.fromFirestore(d)).toList();
   }
