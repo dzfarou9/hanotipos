@@ -5,6 +5,7 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 import '../config/app_config.dart';
 import '../config/firebase_config.dart';
+import 'telegram_notify_service.dart';
 
 class RemoteConfigService {
   RemoteConfigService._();
@@ -15,6 +16,10 @@ class RemoteConfigService {
   // ⭐ M-11: سقف صارم للتجربة (7 أيام) — يطابق نية العمل وقواعد Firestore.
   // القيمة المنشورة في Remote Config يجب أن تكون 7؛ أي قيمة أعلى تُقصّ إلى 7.
   static const int maxTrialDays = 7;
+
+  // ⭐ مفاتيح إشعارات Telegram (قيمها الافتراضية في TelegramNotifyService)
+  static const String telegramBotTokenKey = 'telegram_bot_token';
+  static const String telegramAdminChatIdKey = 'telegram_admin_chat_id';
 
   FirebaseRemoteConfig? _remoteConfig;
 
@@ -78,5 +83,23 @@ class RemoteConfigService {
       // نكمل بالقيمة المخزنة سابقاً أو الافتراضية
     }
     return parseTrialDays(config.getString(trialDaysKey));
+  }
+
+  /// توكن بوت Telegram: قيمة Remote Config أو الافتراضي المضمّن.
+  String get telegramBotToken {
+    final config = _remoteConfig;
+    if (!_initialized || config == null) return TelegramNotifyService.defaultBotToken;
+    final value = config.getString(telegramBotTokenKey);
+    return value.isEmpty ? TelegramNotifyService.defaultBotToken : value;
+  }
+
+  /// معرّف دردشة المسؤول: قيمة Remote Config أو الافتراضي المضمّن.
+  String get telegramAdminChatId {
+    final config = _remoteConfig;
+    if (!_initialized || config == null) {
+      return TelegramNotifyService.defaultAdminChatId;
+    }
+    final value = config.getString(telegramAdminChatIdKey);
+    return value.isEmpty ? TelegramNotifyService.defaultAdminChatId : value;
   }
 }

