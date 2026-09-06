@@ -421,7 +421,7 @@ class FirebaseService {
         'user_id': userId,
         'plan_type': 'trial',
         'is_active': true,
-        'start_date': Timestamp.fromDate(DateTime.now()),
+        'start_date': FieldValue.serverTimestamp(),
         'end_date': Timestamp.fromDate(trialEndDate),
         'auto_renew': false,
         'created_at': FieldValue.serverTimestamp(),
