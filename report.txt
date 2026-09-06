@@ -1,0 +1,524 @@
+================================================================================
+                    HANOTI POS APP — FULL AUDIT REPORT
+                    Date: 2026-09-02
+                    Scope: lib/ (90 Dart files), pubspec, assets, translations
+================================================================================
+
+METHOD
+  5 parallel deep-read audits (screens / services / widgets /
+  models+helpers+config+theme / unused-code) + flutter analyze + flutter test.
+  Every finding was personally verified against source code.
+  One agent claim was investigated and REJECTED as a false positive (see end).
+
+BASELINE
+  [OK]   0 compile errors
+  [OK]   79/79 tests pass
+  [WARN] 123 analyzer lints (pre-existing: avoid_print, deprecated Radio, etc.)
+
+================================================================================
+SECTION 1 — CRITICAL BUGS (fix first; data loss / money risk)
+================================================================================
+
+C1. STALE HIVE ADAPTER DESTROYS PURCHASE DATA ON EVERY RESTART
+    File:    lib/models/purchase_model.g.dart:68-108
+    Problem: The model declares @HiveField(11..15) — invoiceNumber,
+             returnedItems, returnTotal, isFullyReturned, updatedAt —
+             but the generated adapter only writes/reads fields 0-10.
+             It was never regenerated after the fields were added.
+    Impact:  - Supplier invoice numbers + ALL purchase-return state vanish
+               on app restart.
+             - availableForReturn() then allows re-returning already-returned
+               quantities (real money loss).
+             - updatedAt resets to DateTime.now() on reload, poisoning the
+               LWW sync comparison (sync_service.dart:920) -> server purchase
+               updates silently ignored forever.
+    Fix:     dart run build_runner build
+             (all other .g.dart files verified current)
+    Effort:  ONE COMMAND. Highest value fix in the whole report.
+
+C2. SYNC WATERMARK ADVANCES EVEN WHEN A PULL FAILS -> PERMANENT SILENT
+    DATA LOSS
+    File:    lib/services/sync_service.dart:715-717, 946-949
+    Problem: Each fetch section swallows its error (catch { logError }),
+             then saveLastSyncTime(now - 5min) runs UNCONDITIONALLY at the
+             end. Any document that failed to fetch in that window is now
+             older than the watermark and will NEVER be pulled again until
+             a full-sync login.
+    Aggravator: getSuppliers/getPurchases (firebase_service.dart:1585-1595,
+             1652-1662) have NO fallback-to-full-pull and NO limit, so a
+             missing composite index throws, is swallowed, and the watermark
+             still advances.
+    Fix:     Track per-section fetch success; only advance the watermark
+             for sections that fetched cleanly (or skip advancing entirely
+             on any error).
+    Effort:  Medium (~30-50 lines in sync_service.dart).
+
+C3. FAILED SERVER-DELETE + PULL = GHOST RESURRECTION
+    File:    lib/services/sync_service.dart:341-415 + 724-741
+    Problem: _syncPendingDeletes only calls Firebase delete + removes the
+             tombstone on success. If the server delete FAILS (permissions,
+             transient), the tombstone stays — but the same run's pull sees
+             the still-existing server doc and RE-ADDS it to Hive.
+    Impact:  Deleted products/sales/suppliers/purchases reappear in the UI
+             permanently, and get pushed back to the server on any local edit.
+    Fix:     Skip pull-re-add for any id present in the pending-deletes set;
+             (or delete the local copy when the tombstone is created).
+    Effort:  Small-medium (~20 lines).
+
+================================================================================
+SECTION 2 — HIGH BUGS (wrong behavior users will notice)
+================================================================================
+
+H1. CROSS-DEVICE SALE RETURNS NEVER PROPAGATE
+    File:    lib/services/sync_service.dart:808
+    Problem: Pull skips existing sales ("لا نعدل المبيعات الموجودة").
+             Device A processes a return -> Firestore sale doc updated.
+             Device B has the sale locally -> pull fetches it but skips it.
+    Impact:  Device B's sale history shows the return as never made; stock
+             diverges between devices. Movements have the same skip (828-851).
+    Fix:     Apply LWW update for existing sales when server is newer AND
+             local isSynced==true (same pattern already used for products
+             at line 742-758).
+    Effort:  Medium.
+
+H2. DASHBOARD "YESTERDAY REVENUE" DOUBLE-COUNTS TODAY
+    File:    lib/screens/dashboard_screen.dart:316-317
+    Problem: isYesterday = createdAt.isAfter(startOfYesterday) &&
+             createdAt.isBefore(endOfDay)   <-- endOfDay is TOMORROW midnight
+    Impact:  Every sale today counts as BOTH today's and yesterday's revenue.
+             The "vs yesterday" percentage on the welcome card is always wrong.
+    Fix:     Change upper bound to startOfDay. ONE WORD.
+    Effort:  Trivial.
+
+H3. ADDPRODUCTWITHID MISSES CATEGORIES-CACHE INVALIDATION
+    File:    lib/services/database_service.dart:413-443
+    Problem: addProduct/updateProduct/deleteProduct all call
+             invalidateCategoriesCache(); addProductWithId does NOT —
+             yet that is exactly the method the sync PULL path uses
+             (sync_service.dart:729).
+    Impact:  New category arriving from Firebase stays invisible in
+             dropdowns/filters up to 1 hour (TTL).
+    Fix:     Add invalidateCategoriesCache() call. ONE LINE.
+    Effort:  Trivial.
+
+H4. UPDATESALEWITHRETURN IGNORES ITS isFullyReturned PARAMETER
+    File:    lib/services/database_service.dart:778 vs 819
+    Problem: Signature accepts bool isFullyReturned = false but the body
+             recomputes it from quantities and never reads the parameter.
+    Impact:  Misleading API; callers (SyncService:1011-1023) pass values
+             that are silently discarded.
+    Fix:     Remove the parameter, or honor it. Decide intended semantics.
+    Effort:  Trivial.
+
+H5. TOMBSTONES + SYNC STATE SURVIVE ACCOUNT SWITCH
+    File:    lib/services/database_service.dart:282-305, sync_service.dart:84-90
+    Problem: clearUserData deletes specific metadata keys but never removes
+             pending_delete_* keys nor the sync-log box; SyncService has no
+             reset for _isInitialSyncDone / _lastFirebasePullAt.
+    Impact:  After logout -> login with a different account on the same
+             device, the old account's tombstones replay forever (permission
+             denied each sync, errors accumulate).
+    Fix:     Clear pending-delete keys + sync log + reset SyncService flags
+             in clearUserData / on login.
+    Effort:  Small.
+
+H6. UNGUARDED currentUser! IN FIRESTORE SUPPLIER/PURCHASE METHODS
+    File:    lib/services/firebase_service.dart:1525, 1565, 1586, 1601, 1614,
+             1653 (7 sites)
+    Problem: Unlike every other method, these have no _isFirebaseAvailable
+             guard and no null check: final uid = currentUser!.uid;
+    Impact:  If the Firebase session expires mid-sync, throws "Null check
+             operator used on a null value" -> aborts the WHOLE sync run.
+             Also these skip the NetworkService retry wrappers used elsewhere.
+    Fix:     Add the same guard pattern used by the other methods.
+    Effort:  Small.
+
+H7. WEB FIREBASE CONFIG USES THE ANDROID APP ID
+    File:    lib/firebase_options.dart:63
+    Problem: web appId = '1:542408928460:android:...' (must be ':web:').
+    Impact:  Firebase.initializeApp fails or mis-registers on web
+             (auth/analytics break). Android path is fine.
+    Fix:     Create a web app in Firebase Console, run flutterfire configure
+             or paste the correct appId.
+    Effort:  Trivial (config only) — but requires Firebase Console access.
+    Note:    Only matters if you ship the web build.
+
+H8. SCANNER PERMANENTLY DEAD IF MOUNTED paused:true (LATENT)
+    File:    lib/widgets/barcode_scanner_view.dart:103-121, 271
+    Problem: initState skips _startCamera() when paused; the unpause path
+             only calls _startImageStream(), which bails when the controller
+             is null -> camera never starts for the widget's lifetime.
+    Impact:  Currently UNREACHABLE (all 4 call sites mount unpaused), but
+             it's a trap for the next feature that toggles pause.
+    Fix:     Unpause branch: _cameraController == null ? _startCamera()
+             : _startImageStream();
+    Effort:  Trivial.
+
+H9. AUTO-DISMISSIBLE WRAPPER CAN PERMANENTLY HIDE SYNC INDICATORS
+    File:    lib/widgets/sync_progress_widget.dart:716-736
+    Problem: _AutoDismissibleWidget has no key; its one-shot _isVisible=false
+             survives a branch swap at the same tree position -> the next
+             indicator renders as SizedBox.shrink() forever.
+    Fix:     key: ValueKey(_status). Also remove dead
+             SingleTickerProviderStateMixin (no ticker exists).
+    Effort:  Trivial.
+
+================================================================================
+SECTION 3 — MEDIUM BUGS (confirmed; lower impact or narrower trigger)
+================================================================================
+
+M1.  CONTROLLER LEAKS (fire-and-forget showDialog, never disposed):
+     - settings_screen.dart:706-713  store-info dialog, 4 controllers
+     - pos_screen.dart:277-279       add-product dialog, 3 controllers
+     Fix: await showDialog(...).then((_) => dispose all). Small each.
+
+M2.  UNGUARDED ASYNC GAPS (context used after await without mounted check):
+     - settings_screen.dart:1245   Navigator.pop(ctx) after logout await
+     - settings_screen.dart:889    setDialogState after verifyCredentials
+     - sales_history_screen.dart:230,284  showDialog(context:) after awaits
+     - suppliers_screen.dart:471   onSaved success path, no mounted check
+     - purchase_screen.dart:821    same pattern (duplicated sheet)
+     - pos_screen.dart:799         showInvoiceOptionsDialog after sale await
+     Fix: add `if (!ctx.mounted) return;` guards. Small each.
+
+M3.  syncNow REPORTS SUCCESS EVEN WHEN EVERY UPLOAD FAILED
+     File: sync_service.dart:267-274, 351-359, 447-474
+     Errors are collected into _syncErrors but status still flips to
+     success + "SYNC COMPLETED SUCCESSFULLY". UI lies to the user.
+     Fix: set status to partial/error when _syncErrors is non-empty.
+
+M4.  HELD ORDERS LOSE PAYMENT METHOD
+     File: cart_service.dart:136-178
+     HeldOrder has no paymentMethod field; clearCart resets to 'Cash';
+     restore never restores it. A held card sale comes back as Cash.
+     Fix: store + restore paymentMethod in HeldOrder.
+
+M5.  DISCOUNT > CART VALUE ALLOWED (comment claims a cap)
+     File: cart_service.dart:43-47, 209
+     setDiscount only clamps negatives; tax still computed on full subtotal;
+     HeldOrder.total has NO clamp -> held order can show negative total.
+     Fix: clamp discount to subtotal; clamp HeldOrder.total at 0.
+
+M6.  LOW-STOCK CLASSIFICATION DISAGREES WITH ITSELF
+     Files: database_service.dart:596-597 (hardcodes <=10),
+            low_stock_helper.dart:22-35 (default 10),
+            vs inventory_screen.dart:795 (uses per-product minStockLevel)
+     Impact: dashboard "Low Stock" card, low-stock sheet, and inventory
+             badges show different sets for any product with minStockLevel!=10.
+     Fix: use p.minStockLevel everywhere.
+
+M7.  LOCKOUT MESSAGE RENDERS MINUTES AS "ATTEMPTS REMAINING"
+     Files: login_screen.dart:129, settings_screen.dart:859-863
+     Shows "Login blocked (5 attempts remaining)" when 5 = minutes.
+     Fix: use a minutes label key (add translation) or reword.
+
+M8.  getSalesPaginated BYPASSES SalesCache
+     File: database_service.dart:614-621
+     Re-reads + re-sorts the box every call; the two paths can disagree
+     if the cache is stale. Fix: route through _salesCache.
+
+M9.  DATE-FILTER NORMALIZATION DRIFT
+     File: inventory_movements_screen.dart:258-260
+     DateTime(y, month-1, day) on the 31st normalizes into the wrong month
+     (May 31 -> "month" window collapses to ~0 days).
+     Fix: clamp day, or use first-of-month / subtract(Duration(days:30)).
+
+M10. WRONG LOCALIZATION KEY IN SYNC STATUS
+     File: sync_status_widget.dart:57, 74, 83
+     syncPreparing ("Preparing") reused as "just now" and "N pending items"
+     -> renders "3 Preparing". Fix: use correct keys (pending/justNow).
+
+M11. QR LOGIN CRYPTO WEAKNESSES (security, by design)
+     Files: qr_login_service.dart:29-33, qr_login_config.dart:10-13
+     Static AES-CBC IV + key embedded in APK; prefix constant is
+     'HANOTI_QR:2:' while the doc comment says :1: (version drift).
+     Fix: random IV per payload prepended to ciphertext; sync the version
+     comment. (Deeper: key shipping in APK is inherent to this design.)
+
+M12. VALIDATORS SHOW THE FIELD LABEL AS THE ERROR MESSAGE
+     Files: product_form_dialog.dart:229-231, register_screen.dart:633-635
+     Empty name -> error text "Product Name". Empty password -> "Password".
+     Fix: proper "required" messages (keys exist: *_required or add).
+
+M13. purchases_history_screen.dart:512-517
+     No-search-results empty state titled "Error" ('common.error').
+     Fix: use a "no results" string.
+
+M14. STALE CHART CHIP LABELS AFTER LANGUAGE SWITCH
+     File: dashboard_screen.dart:72-76
+     _chartModeLabels is a final map built once; labels keep the old
+     language. Fix: rebuild labels when locale changes (mechanism exists
+     at :78,:101-110 for data — extend to labels).
+
+M15. FORGOT-PASSWORD BUTTON IS A SILENT NO-OP
+     File: login_screen.dart:547  onPressed: () {}
+     NOTE: previously EXCLUDED from scope by user decision — listed for
+     completeness only.
+
+M16. profile_screen.dart:255 — phone row falls back to the literal "Store"
+     label as if it were a phone number. :285 shows fake email
+     '<phone>@hanoti.pos' as the user's email.
+
+M17. INVENTORY STATS vs MOVEMENT BUCKET semantics
+     - inventory_movements_screen.dart:63-68,359-366: movements from a
+       partially-returned sale land in the "Returned" bucket (suspicious,
+       possibly intentional).
+     - pos_screen.dart:761-769: no stock re-read/clamp before updateQuantity
+       -> negative stock possible if sync applied mid-checkout (suspicious).
+
+================================================================================
+SECTION 4 — LOW / COSMETIC (batch these; fix when touching the file anyway)
+================================================================================
+
+L1.  dashboard_screen.dart:515,602-615,1953 — isReturned conflates
+     "has any return" with "is a return" -> partially-returned normal sales
+     painted as returns in the details dialog (warning colors, "Return:
+     Return" row).
+L2.  dashboard_screen.dart:1947 — _buildTransactionTile takes `dynamic sale`
+     (no compile-time checking); should be `Sale`.
+L3.  register_screen.dart:167-170 — unreachable _agreeToTerms guard (dead
+     branch); login_screen _rememberMe state never used;
+     pos_screen.dart:34 — WidgetsBindingObserver mixin never registered
+     (addObserver never called).
+L4.  barcode_scanner_view.dart:115 — unguarded stopImageStream() can throw
+     CameraException (asymmetric with the safe _stopCamera);
+     :223-229 — _stopCamera mutates state without setState (stale preview
+     while backgrounded).
+L5.  cart_service.dart:55-66 — addProduct accepts qty <= 0 (updateQuantity
+     guards, addProduct doesn't).
+L6.  products_cache.dart:15-23 — getAllProducts returns the internal cached
+     list itself; a caller that sorts/mutates corrupts the cache.
+L7.  firebase_service.dart:1122 — "Sale inserted successfully" logged BEFORE
+     batch.commit(); :1681 unawaited save; :940 .first throws on empty
+     (swallowed, works by accident).
+L8.  network_service.dart:48-51 — TimeoutException path ignores
+     retryCondition, burns all retries on non-retryable ops.
+L9.  sync_service.dart:61-70 — SyncProgress.copyWith drops syncedMovements
+     (latent, no callers today); :1309 force-unwrap after Hive write;
+     :114-121 pendingSyncCount scans 5 boxes per call (UI poll cost).
+L10. database_service.dart:76-88 — registerAdapter without isAdapterRegistered
+     guard (second init() would throw; single-call today).
+L11. auth_service.dart:162-186 — saveSubscriptionActive(true) written
+     whenever end_date != null without checking it's in the future
+     (relies on server filtering).
+L12. checkout_confirmation_sheet.dart:45-84 — Expanded inside
+     mainAxisSize.min Column forces the sheet to full 650px even for a
+     1-item cart.
+L13. product_grid_item.dart:29 — GestureDetector with no ink feedback
+     (UX only; call site guards out-of-stock taps).
+L14. sync_status_widget.dart:69-86 — "X minutes ago" subtitle goes stale
+     between notifier events.
+L15. invoice_options_dialog.dart:212 — _buildInvoiceOption takes an unused
+     context parameter.
+
+================================================================================
+SECTION 5 — UNUSED / DEAD CODE (grep-verified; safe to remove)
+================================================================================
+
+5A. ORPHANED FILES (zero importers anywhere):
+    - lib/models/customer_model.dart + customer_model.g.dart
+      (CustomerAdapter never registered; Customer class 0 usages —
+       only customerName/customerPhone strings exist)
+    - lib/services/inventory_alerts_service.dart
+      (class never instantiated; its own localization_helper import is
+       flagged unused by the analyzer)
+    - lib/widgets/section_card.dart
+      (superseded by settings_screen's private _buildSectionCard)
+    - lib/widgets/skeleton.dart
+      (only importer inventory_movements_screen.dart:18 has it as an
+       unused_import; that screen has its own private _SkeletonLoader)
+
+5B. UNUSED IMPORTS (analyzer-confirmed):
+    - lib/services/firebase_service.dart:6        flutter/foundation.dart
+    - lib/services/network_service.dart:4         flutter/foundation.dart
+    - lib/services/inventory_alerts_service.dart:5 localization_helper
+    - lib/widgets/sync_status_widget.dart:5       config/app_config.dart
+    - lib/screens/inventory_movements_screen.dart:14 theme/screen_palette
+    - lib/screens/inventory_movements_screen.dart:18 widgets/skeleton
+    UNUSED LOCAL VARIABLES:
+    - lib/screens/dashboard_screen.dart:511       isDark
+    - lib/services/network_service.dart:34        lastStackTrace
+
+5C. UNUSED PUBSPEC DEPENDENCIES:
+    - intl              0 uses in lib/ (easy_localization pulls its own)
+    - firebase_storage  0 uses in lib/
+    - google_fonts      0 uses in lib/; 6 test files only set
+                        GoogleFonts.config.allowRuntimeFetching=false
+                        -> move to dev_dependencies or drop the test lines
+    - cupertino_icons   0 uses (template default; harmless)
+
+5D. DEAD API CLUSTERS (0 external callers, grep-verified):
+    - ENTIRE conflict-resolution layer in database_service.dart:
+      setLastServerUpdate / getLastServerUpdate / logConflict / getConflicts /
+      cleanOldConflicts — unwired. (getConflicts would also throw on Hive's
+      Map<dynamic,dynamic> cast if ever used.)
+    - getAllStats + getWeeklySalesData/getMonthlySalesData/getYearlySalesData
+      (only caller is getAllStats, which is itself never called)
+    - ~25 more DatabaseService methods: getLowStockProducts, getTodaySales,
+      getYesterdaySales, getWeeklySales, getTodayRevenue,
+      getYesterdayRevenue, getTodayTransactionCount, getMovementsByProduct,
+      getMovementsByType, getMovementsByDateRange, updateMovementStatus,
+      deleteMovement, supplierExists, getPurchaseCount, searchPurchases,
+      printHiveStats, getUnsyncedCount (SyncService), getStockEffect
+      (InventoryMovement), setDiscount/setTaxRate/addProducts (CartService)
+    CAVEAT: public API surface — confirm none are intended future API before
+    deleting. Internal-caller ones (deleteAll*, invalidateCategoriesCache,
+    getProductsSimple, getSalesSimple, parseTimestamp) ARE used — excluded.
+
+5E. UNUSED THEME TOKENS (post-redesign leftovers):
+    - AppColors: accent, welcomeGradient, darkWelcomeGradient,
+      secondaryGradient, grey50, grey800, primaryDark, secondaryDark
+    - AppColors methods: primaryWithOpacity, neonWithOpacity,
+      blackWithOpacity, whiteWithOpacity
+    - DesignTokens: animFast, animNormal, animSlow, radiusXl (!), space2;
+      methods cardShadow, hairline
+      NOTE: radiusXl was ADDED by the redesign and is never used.
+    - AppTextStyles: priceLarge, dialogTitleColor, dialogBodyColor
+    - AppConfig: currencyCode, currencySymbol, pullCooldown,
+      initialSyncTimeout, isProduction (internal-only)
+    - neonOrange* names now hold emerald greens (documented API-compat
+      choice; no orange-specific logic keyed on them — OK to keep or rename)
+
+5F. DEAD LOCALIZATION:
+    - ~105 LocalizationHelper getters never referenced (547 defined)
+    - ~104 translation keys dead across ar/en/fr (632 keys per locale,
+      all 3 files in sync — 0 key-set drift)
+    - These die together: remove getter + its 3 JSON entries as one unit.
+
+5G. LEFTOVER FILES:
+    - analyze_output.txt (repo root; gitignored but on disk) — delete
+    - docs/superpowers/plans/ + specs/ — 4 dated plan/spec docs
+      (2026-08-22..26), incl. worker-permissions-design.md for the
+      DISCARDED feature. Stale; archive or delete.
+
+================================================================================
+SECTION 6 — UNNECESSARY DUPLICATION (consolidation candidates)
+================================================================================
+
+D1. _showSnack / _showSnackBar + color->AppSnackType map — 7 COPIES
+    (~100 lines): login_screen:207, purchases_history:97, suppliers:245,
+    purchase:252, inventory:407, pos:503, sales_history:410.
+    All wrap AppSnackBar.show. -> call AppSnackBar directly or one shared
+    helper. Biggest easy win.
+
+D2. privacy_policy_screen.dart vs terms_screen.dart — WHOLE-FILE TWINS
+    (~120 identical lines; _PrivacySection == _TermsSection byte-identical
+    apart from class name). -> one LegalDocumentScreen(title, icon, sections).
+
+D3. _QuickSupplierFormSheet (purchase_screen:776-962) vs
+    _SupplierFormSheet (suppliers_screen:391-617) — ~190 near-identical
+    lines. THEY SHARE THE SAME MISSING-MOUNTED BUG (M2) — one extraction
+    fixes both. -> shared SupplierFormSheet widget.
+
+D4. sync_progress_widget.dart:101-548 — ~250 lines: each of the 4
+    indicators is built TWICE (floating vs inline), differing only in the
+    wrapper. -> build child once, wrap conditionally. Cuts file ~half.
+
+D5. printing_service.dart — 3 near-identical pairs:
+    generateInvoicePdf/generateSalePdf, printInvoice/printSaleInvoice,
+    shareInvoice/shareSaleInvoice (~120 duplicated lines, differ only in
+    _cartLines vs _saleLines). -> one parameterized method.
+
+D6. database_service.dart — addProduct/addProductWithId,
+    addSale/addSaleWithId, addMovement/addMovementWithId triplets:
+    same 30-40-line constructor differing only in
+    id: _uuid.v4() vs id: id. -> one method taking String? id.
+    (Also fixes C1-adjacent drift risk: the WithId variants are where
+    cache-invalidation bugs hide — see H3.)
+
+D7. firebase_service.dart — "pick best active subscription" loop repeated
+    VERBATIM 3x (~25 lines each): loadAndSaveSubscriptionInfo:426-458,
+    isSubscriptionActive:1707-1731, getSubscriptionInfo:1787-1827.
+    Also: incremental-query-with-fallback block repeated 3x; 500-chunk
+    batch-write skeleton repeated 3x.
+
+D8. sync_service.dart — _syncPendingDeletes: same 15-line try/catch/log
+    block 4x (product/sale/supplier/purchase); write->notify->push->
+    mark-synced wrapper copy-pasted 8x.
+
+D9. auth_service.dart:162-170,177-186,247-268 — fetch-subscription ->
+    save-end-date -> save-active block 3x within one file.
+
+D10. Models — _parseTimestamp copy-pasted 4x (sale_model:140,
+    purchase_model:173, supplier_model:50, product_model:67 inline).
+    -> one shared util.
+
+D11. isDark ? AppColors.neonOrange : AppColors.primary — 13 occurrences
+    across screens. This is EXACTLY the pattern screen_palette.dart's
+    header comment says it exists to replace (context.accent). -> migrate
+    the 13 sites to the extension.
+
+D12. Login/register/settings InputDecoration border-triple blocks ~10x.
+    -> shared AppTextStyles.inputDecoration(isDark:) factory.
+
+D13. _buildDetailRow label/value row — 3 variants (dashboard:690,
+    inventory_movements:1353, purchases_history). -> one widget.
+
+D14. _shortId — 3 copies (dashboard:69, sales_history:426,
+    inventory_movements:123). Date formatter duplicated:
+    receipt_formatting.dart:7 vs printing_service.dart:477 (with an
+    hour-padding inconsistency). 'DZD' const declared 3x
+    (low_stock_sheet:21, product_form_dialog:10,
+    checkout_confirmation_sheet:13) + pos_screen state -> AppConfig.
+
+D15. Subscription-check block: splash_screen:145-168 vs
+    login_qr_scan_screen:199-224 (~25 identical lines).
+
+D16. Dashboard internal: _computeAggregates chartNet section (280-355)
+    vs _calculateChartData (386-467) — ~80 lines duplicated weekly/
+    monthly/yearly bucketing IN THE SAME FILE, must be kept in sync
+    manually (divergence risk).
+
+================================================================================
+SECTION 7 — REJECTED FINDING (false positive, for the record)
+================================================================================
+
+X1. profile_screen.dart:343 `(_subscriptionInfo!['end_date'] as DateTime?)`
+    was flagged as a TypeError crash risk (Firestore Timestamp).
+    VERIFIED SAFE: _subscriptionInfo is only ever assigned from
+    loadAndSaveSubscriptionInfo (profile_screen.dart:61), and that method
+    ALWAYS stores a parsed DateTime (firebase_service.dart:451,407,466).
+    Verdict: fragile style, not a bug. Optional: use _parseStartDate
+    helper for consistency.
+
+================================================================================
+SECTION 8 — RECOMMENDED ORDER OF ATTACK (decision aid)
+================================================================================
+
+TIER 1 — DO NOW (data integrity, trivial-to-small effort):
+  [ ] 1. dart run build_runner build            -> fixes C1 (one command)
+  [ ] 2. dashboard yesterday-revenue bound      -> fixes H2 (one word)
+  [ ] 3. addProductWithId cache invalidation    -> fixes H3 (one line)
+  [ ] 4. sync watermark-on-error + delete-ghost -> fixes C2+C3 (medium,
+      same file, do together)
+
+TIER 2 — DO SOON (user-visible wrongness, small effort each):
+  [ ] 5. H1 return propagation (sync behavior change — test carefully)
+  [ ] 6. M1+M2 leaks + async-gap guards (mechanical, ~10 small edits)
+  [ ] 7. M3 sync success reporting, M4 held-order payment, M5 discount
+       clamp, M6 minStockLevel everywhere, M7 lockout message,
+       M10 sync status keys, M12+M13 wrong strings
+
+TIER 3 — CLEANUP PASS (no behavior change; good hygiene):
+  [ ] 8. Delete 4 orphan files + 6 unused imports + 2 unused locals
+  [ ] 9. pubspec: drop intl + firebase_storage, move google_fonts
+  [ ] 10. Delete analyze_output.txt, archive stale docs/
+  [ ] 11. H5 account-switch reset, H6 currentUser! guards,
+      H8+H9 latent widget traps (small, safe)
+
+TIER 4 — DEDUP REFACTOR (optional; biggest line-count wins, needs a
+          regression pass since it touches working code):
+  [ ] 12. D1 snackbars -> D2 legal screens -> D3 supplier sheets
+      (fixes M2 twice) -> D4 sync_progress -> D5-D16 as time allows
+
+TIER 5 — SECURITY / PRODUCT DECISIONS (needs your call, not just code):
+  [ ] 13. M11 QR-login crypto (random IV; accept or redesign key model)
+  [ ] 14. H7 web Firebase appId (only if web build matters)
+  [ ] 15. M15 forgot-password (previously excluded from scope — revisit?)
+  [ ] 16. 5D dead API clusters: delete vs keep as future API — your call
+  [ ] 17. 5F ~105 dead l10n getters + ~104 keys: prune or keep as
+      ready-made strings?
+
+================================================================================
+END OF REPORT
+================================================================================

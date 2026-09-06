@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hanoti Security Audit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F4F6F8; --surface:#FFFFFF; --ink:#182430; --ink-soft:#4C5C6C; --ink-faint:#7A8A99;
+  --line:#DCE3E9; --line-strong:#C3CFD9;
+  --accent:#0E7C5A; --accent-soft:#E2F1EB;
+  --critical:#B3261E; --critical-bg:#FBEAE8;
+  --high:#C05700; --high-bg:#FCEFE2;
+  --medium:#9A7500; --medium-bg:#FAF2DC;
+  --low:#4E6B80; --low-bg:#EAF0F4;
+  --ok:#2E7D32; --ok-bg:#E7F3E8;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F151B; --surface:#161E26; --ink:#E3E9EF; --ink-soft:#9DAEBE; --ink-faint:#6E8091;
+    --line:#26333F; --line-strong:#35485A;
+    --accent:#43B58C; --accent-soft:#12312A;
+    --critical:#F2605A; --critical-bg:#3A1A18;
+    --high:#F0913E; --high-bg:#3A2614;
+    --medium:#D9AC33; --medium-bg:#362D12;
+    --low:#8FAEC6; --low-bg:#1B2831;
+    --ok:#5FBF6B; --ok-bg:#152A18;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F151B; --surface:#161E26; --ink:#E3E9EF; --ink-soft:#9DAEBE; --ink-faint:#6E8091;
+  --line:#26333F; --line-strong:#35485A;
+  --accent:#43B58C; --accent-soft:#12312A;
+  --critical:#F2605A; --critical-bg:#3A1A18;
+  --high:#F0913E; --high-bg:#3A2614;
+  --medium:#D9AC33; --medium-bg:#362D12;
+  --low:#8FAEC6; --low-bg:#1B2831;
+  --ok:#5FBF6B; --ok-bg:#152818;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:400 16px/1.65 'Source Sans 3',system-ui,-apple-system,Segoe UI,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:920px;margin:0 auto;padding:48px 24px 96px}
+header.masthead{border-bottom:3px solid var(--ink);padding-bottom:28px;margin-bottom:36px}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:'Bricolage Grotesque',var(--mono),sans-serif;font-weight:800;font-size:clamp(30px,5vw,44px);line-height:1.08;letter-spacing:-.015em;margin:10px 0 14px;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;color:var(--ink-soft);font-size:14px}
+.meta b{font-weight:600;color:var(--ink)}
+h2{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:24px;letter-spacing:-.01em;margin:52px 0 6px;text-wrap:balance}
+h2 .rule{display:block;width:44px;height:3px;background:var(--accent);margin-bottom:14px}
+.lede{color:var(--ink-soft);max-width:66ch;margin:0 0 26px}
+/* severity ledger */
+.ledger{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 8px;padding:0;list-style:none}
+.ledger li{flex:1 1 120px;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--sev,var(--line-strong));padding:12px 14px 10px;border-radius:4px}
+.ledger .n{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px;line-height:1;font-variant-numeric:tabular-nums;color:var(--sev,var(--ink))}
+.ledger .l{font:600 11px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:6px}
+/* findings */
+.finding{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--sev);border-radius:4px;padding:20px 22px 18px;margin:18px 0}
+.finding h3{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;line-height:1.3;margin:0 0 4px;text-wrap:balance}
+.fhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.chip{font:600 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border-radius:3px;background:var(--sev-bg);color:var(--sev);white-space:nowrap}
+.fid{font:500 12px/1 var(--mono);color:var(--ink-faint)}
+dl{margin:12px 0 0}
+dt{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-top:14px}
+dd{margin:5px 0 0;max-width:72ch}
+dd code, .refs code{font:500 13px/1.5 var(--mono);background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:1px 5px;white-space:nowrap}
+.refs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.refs code{white-space:normal;word-break:break-all}
+.fix{border-top:1px dashed var(--line-strong);margin-top:16px;padding-top:4px}
+.fix dt{color:var(--accent)}
+/* low list */
+ul.compact{padding-left:0;list-style:none;margin:14px 0}
+ul.compact li{border-top:1px solid var(--line);padding:10px 0 10px 14px;position:relative;color:var(--ink-soft)}
+ul.compact li::before{content:"";position:absolute;left:0;top:18px;width:6px;height:6px;border-radius:50%;background:var(--low)}
+ul.compact b{color:var(--ink);font-weight:600}
+ul.compact code{font:500 12.5px/1.4 var(--mono);color:var(--ink-soft)}
+/* ok list */
+.okgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 28px;margin:14px 0}
+.okgrid li{list-style:none;padding:9px 0 9px 24px;position:relative;border-top:1px solid var(--line);color:var(--ink-soft);font-size:15px}
+.okgrid li::before{content:"✓";position:absolute;left:2px;top:8px;color:var(--ok);font-weight:700}
+/* checklist */
+ol.check{counter-reset:c;list-style:none;padding:0;margin:14px 0}
+ol.check li{counter-increment:c;position:relative;padding:12px 14px 12px 52px;background:var(--surface);border:1px solid var(--line);border-radius:4px;margin-bottom:8px}
+ol.check li::before{content:counter(c);position:absolute;left:14px;top:12px;width:26px;height:26px;display:grid;place-items:center;font:600 13px/1 var(--mono);color:var(--accent);background:var(--accent-soft);border-radius:50%}
+ol.check b{font-weight:600}
+/* priority */
+.prio{margin:14px 0}
+.prio li{margin:0 0 10px;padding-left:4px}
+.prio .tag{font:600 10.5px/1 var(--mono);letter-spacing:.08em;padding:3px 7px;border-radius:3px;margin-right:8px;vertical-align:1px}
+footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:13.5px}
+a{color:var(--accent)}
+::selection{background:var(--accent-soft)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">Security &amp; Cost Audit · 2 September 2026</div>
+  <h1>Hanoti POS — Full-App Audit</h1>
+  <div class="meta">
+    <span><b>Target:</b> hanoti-farou9 · Flutter (Android + Web) · Firebase Auth / Firestore / Remote Config</span>
+  </div>
+  <div class="meta" style="margin-top:6px">
+    <span><b>Method:</b> four parallel domain audits — security rules &amp; configs, auth flows, subscription &amp; billing, data storage &amp; PII</span>
+  </div>
+</header>
+
+<p class="lede">Tenant isolation in the Firestore rules is solid — no cross-tenant read or write was found. The real exposure is on the money and credential side: the paywall and trial system are client-suggestions rather than server-enforced, and the QR login ships the user's actual password under a key baked into every APK. Three findings are rated critical; the bill-risk ceiling is set by two silent read-amplification paths and unenforced App Check.</p>
+
+<ul class="ledger">
+  <li style="--sev:var(--critical)"><div class="n">3</div><div class="l">Critical</div></li>
+  <li style="--sev:var(--high)"><div class="n">6</div><div class="l">High</div></li>
+  <li style="--sev:var(--medium)"><div class="n">11</div><div class="l">Medium</div></li>
+  <li style="--sev:var(--low)"><div class="n">10</div><div class="l">Low</div></li>
+  <li style="--sev:var(--ok)"><div class="n">10</div><div class="l">Verified OK</div></li>
+</ul>
+
+<h2><span class="rule"></span>Critical</h2>
+
+<article class="finding" style="--sev:var(--critical);--sev-bg:var(--critical-bg)">
+  <div class="fhead"><span class="chip">Critical</span><span class="fid">C-1</span></div>
+  <h3>QR login embeds the real phone + password, encrypted with a key baked into every APK</h3>
+  <div class="refs"><code>lib/config/qr_login_config.dart:10</code><code>lib/services/qr_login_service.dart:30-57</code><code>lib/screens/settings_screen.dart:889-896</code><code>lib/screens/login_qr_scan_screen.dart:111-128</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>The QR payload is AES-256-CBC of <code>{phone, password}</code> under a compile-time constant key. There is no server, no nonce, no one-time use — the QR <em>is</em> the credential, and the 90-second expiry is checked only against the scanning device's clock.</dd>
+    <dt>Attack</dt>
+    <dd>Decompile the public APK once, extract the key, then decrypt any QR ever photographed or screenshotted — a store owner's screen from across the room — and you hold their permanent password, not a session. The app's own "scan QR from gallery" path means a stolen screenshot works directly, no key extraction needed. Because no password-change or reset path exists (H-3), a leaked QR is an unfixable breach.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Replace with a server-mediated one-time exchange: a Cloud Function mints a 60–120 s single-use opaque token bound to the uid; the scanning device redeems it for a Firebase custom token. The password must never enter a QR, and no secret may be shared across installs.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--critical);--sev-bg:var(--critical-bg)">
+  <div class="fhead"><span class="chip">Critical</span><span class="fid">C-2</span></div>
+  <h3>The paywall trusts local storage first — free access forever, even while online</h3>
+  <div class="refs"><code>lib/services/firebase_service.dart:1692-1705</code><code>lib/services/database_service.dart:317-337</code><code>lib/screens/splash_screen.dart:145-168</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd><code>isSubscriptionActive()</code> returns <code>true</code> whenever the local Hive <code>end_date</code> is in the future, without contacting Firestore. The online check runs only when local state is expired or missing — and its timeout and error paths fall back to the local verdict. The cached value is unsigned and has no re-verification deadline.</dd>
+    <dt>Attack</dt>
+    <dd>On web, no root is needed: DevTools → IndexedDB → set <code>subscription_end_date</code> to <code>2999-12-31</code> → reload. Full app access forever, with Firebase working fine. On rooted Android, edit the Hive box file. Every user who learns the trick is 100% revenue loss.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Server-first with a capped lease: store <code>last_verified_at</code>, treat local state as offline grace for ≤ 24–48 h after a successful server confirmation, and on web never trust <code>end_date</code> past one session.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--critical);--sev-bg:var(--critical-bg)">
+  <div class="fhead"><span class="chip">Critical</span><span class="fid">C-3</span></div>
+  <h3>Trials are self-serviceable for a year — and a self-issued trial overrides a paid subscription</h3>
+  <div class="refs"><code>firestore.rules:39-48</code><code>firestore.rules:104-119</code><code>lib/services/firebase_service.dart:429-441</code><code>lib/services/firebase_service.dart:1733-1744</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>The rules cap a client-created trial at 366 days — matching the code's Remote-Config clamp, not the 7-day business trial. Registration is open (no phone/email verification, H-4) and logout wipes local trial state, so each new account is a fresh trial. Worse, the client picks the <em>maximum</em> <code>end_date</code> across all active subscriptions, so a self-written year-trial at <code>subscriptions/{uid}</code> also wins over a legitimate paid subscription stored at a random doc id.</dd>
+    <dt>Attack</dt>
+    <dd>Register any phone, then write <code>subscriptions/{uid}</code> with <code>end_date = now + 365d</code> directly via the Firestore API — no app needed. Rules accept it. Perpetual free access, and paying customers can be out-gated by their own trial doc.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Move trial issuance to a Cloud Function (Auth <code>onCreate</code>) and set <code>allow create: if false</code> for clients; or tighten the rule cap to +8 days. Make the subscription reader treat self-created docs as non-authoritative. Enforce App Check (M-2) so scripted clients can't reach the API at all.</dd>
+  </dl>
+</article>
+
+<h2><span class="rule"></span>High</h2>
+
+<article class="finding" style="--sev:var(--high);--sev-bg:var(--high-bg)">
+  <div class="fhead"><span class="chip">High</span><span class="fid">H-1</span></div>
+  <h3>Sync can upload one account's business data into another account</h3>
+  <div class="refs"><code>lib/services/sync_service.dart:223-245</code><code>lib/services/auth_service.dart:295-317</code><code>lib/services/database_service.dart:282-315</code><code>lib/services/firebase_service.dart:781,827,1256,1332,1542,1640</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd><code>syncNow()</code> checks that Hive has a user id and Firebase has a session — never that they are the <em>same</em> uid — and every push stamps the current Firebase uid onto documents. Logout wipes Hive non-atomically before sign-out; a mid-wipe failure leaves user A's unsynced sales on the device, and the next login as user B pushes them into B's Firestore account, customer names and phones included.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Hard-fail sync when <code>currentUser.uid != stored user_id</code>; make logout step-independent (always attempt sign-out; verify all boxes empty before proceeding); on login, purge business boxes when a foreign owner is detected.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--high);--sev-bg:var(--high-bg)">
+  <div class="fhead"><span class="chip">High</span><span class="fid">H-2</span></div>
+  <h3>Phone-number enumeration — reachable without the app</h3>
+  <div class="refs"><code>lib/services/firebase_service.dart:102-105,239-240</code><code>assets/translations/en.json:522,527</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>Login distinguishes "user not found" from "wrong password"; registration reveals "this number is already registered". Because auth is plain email/password, this is testable against the public Firebase Identity Toolkit REST API with the public web API key — client-side limits don't apply to that channel.</dd>
+    <dt>Impact</dt>
+    <dd>A script can enumerate which phone numbers hold Hanoti merchant accounts — a ready-made phishing target list.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">One generic "invalid phone or password" message; normalize registration errors; enable App Check enforcement and Identity Platform sign-in quotas in the console.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--high);--sev-bg:var(--high-bg)">
+  <div class="fhead"><span class="chip">High</span><span class="fid">H-3</span></div>
+  <h3>No password reset and no password change — a forgotten password destroys the account</h3>
+  <div class="refs"><code>lib/screens/login_screen.dart:546-548</code><code>lib/services/firebase_service.dart:84,220</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>The forgot-password button is a no-op, and even if wired up, the synthetic email <code>phone@hanoti.pos</code> is unroutable — reset emails go nowhere. There is no in-app password change, and QR generation requires the password, so a locked-out owner has no path back to their store data. This also makes C-1 leaks permanent.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Implement in-app password change now (re-authenticate + <code>updatePassword</code>); long-term, add SMS OTP so real resets exist.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--high);--sev-bg:var(--high-bg)">
+  <div class="fhead"><span class="chip">High</span><span class="fid">H-4</span></div>
+  <h3>No phone-ownership verification — account squatting</h3>
+  <div class="refs"><code>lib/services/firebase_service.dart:195-318</code><code>lib/screens/register_screen.dart:514-515,555-560</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>"Phone + password" is really "username + password": anyone can register any number without proving they own it, and the format isn't normalized (<code>0551234567</code> and <code>551234567</code> are two different accounts). A squatter who grabs a merchant's number first leaves the real owner facing "already registered" with no recovery path (H-3).</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Verify phone ownership via SMS OTP before account creation; normalize the phone format before building the synthetic email.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--high);--sev-bg:var(--high-bg)">
+  <div class="fhead"><span class="chip">High</span><span class="fid">H-5</span></div>
+  <h3>Cloud sale deletion can never succeed — the rules reject the query</h3>
+  <div class="refs"><code>lib/services/firebase_service.dart:1494-1497</code><code>firestore.rules:100-101</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd><code>deleteSale</code> queries <code>sale_items</code> by <code>sale_id</code> with no <code>user_id</code> filter. Firestore rules are not filters: a list query whose constraints don't guarantee permitted results is rejected wholesale, so every sale deletion fails with permission-denied and deleted sales resurface on the next pull.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Add <code>.where('user_id', isEqualTo: userId)</code> — mirroring <code>_getSaleItemsBatched</code> at <code>firebase_service.dart:682-687</code>, which already does it correctly.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--high);--sev-bg:var(--high-bg)">
+  <div class="fhead"><span class="chip">High</span><span class="fid">H-6</span></div>
+  <h3>Two silent read-amplification paths can multiply the Firestore bill</h3>
+  <div class="refs"><code>lib/services/sync_service.dart:323-360</code><code>lib/services/firebase_service.dart:548-567,614-633,1422-1441</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>(a) <code>syncAfterLogin</code> can run up to four full pulls per login (three retries plus a "direct pull" safety net); a full store is ~2,500+ doc reads per pull, so one bad login ≈ 10,000 reads. (b) If the composite indexes aren't deployed, every incremental pull silently falls back to a 500-doc full pull — at the 30-minute cooldown that's a ceiling of ~120k reads/day/user, with no alert.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Verify the composite indexes from <code>firestore.indexes.json</code> are deployed; distinguish <code>failed-precondition</code> (missing index) from transient errors instead of full-pulling; cap login retries. Set a usage budget alert in the Firebase console.</dd>
+  </dl>
+</article>
+
+<h2><span class="rule"></span>Medium</h2>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-1</span></div>
+  <h3>74 raw print() calls leak phone numbers and UIDs in release builds</h3>
+  <div class="refs"><code>lib/services/firebase_service.dart:175,189-190,305,315,343,416</code><code>lib/screens/pos_screen.dart:750,771</code><code>lib/screens/register_screen.dart:208,244</code><code>lib/screens/login_qr_scan_screen.dart:172,189-190,222</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd><code>AppConfig.log</code> is correctly silenced in release, but raw <code>print()</code>/<code>debugPrint()</code> are not — 74 unguarded calls across 12 files reach logcat in production. Firebase error objects embed the synthetic email, i.e. the user's phone number; UIDs and per-sale product data are printed too.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Mechanical sweep to <code>AppConfig.log</code>/<code>logError</code> (or delete); never interpolate auth exception objects.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-2</span></div>
+  <h3>App Check is activated with the debug provider; enforcement unverified</h3>
+  <div class="refs"><code>lib/main.dart:54-58</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd><code>activate()</code> is called with no <code>androidProvider</code> or <code>webRecaptchaSiteKey</code> — Android gets the debug provider, web gets nothing. Combined with open signup and no field validation in the rules, a scripted client can write unbounded documents (a direct billing attack).</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Pass Play Integrity (Android) and a reCAPTCHA v3 key (web); then turn on <em>enforcement</em> — not just monitoring — for Firestore and Identity Toolkit in the console.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-3</span></div>
+  <h3>Storage bucket declared, no storage.rules anywhere</h3>
+  <div class="refs"><code>android/app/google-services.json:5</code><code>lib/firebase_options.dart:57,67</code><code>firebase.json</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>No code uses FirebaseStorage, but the bucket exists and its rules are unmanaged from this repo. If default rules are live in the console, any signed-in user can read and write the whole bucket.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Since it's unused: disable the Cloud Storage API for the project. Otherwise add tenant-scoped <code>storage.rules</code> wired into <code>firebase.json</code>.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-4</span></div>
+  <h3>API key restrictions — verify in console</h3>
+  <div class="refs"><code>android/app/google-services.json:18</code><code>lib/firebase_options.dart:53,62</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>The Android and web API keys are public by design; their protection lives entirely in console settings, which this repo can't confirm. The empty <code>oauth_client</code> array suggests no restriction is recorded.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Restrict the Android key to package <code>com.farou9.hanoti</code> + release SHA-1; restrict the web key to your HTTP referrers; confirm Auth authorized domains list only domains you serve from.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-5</span></div>
+  <h3>Rate limiting is client-side only — and auth failures are retried 4×</h3>
+  <div class="refs"><code>lib/helpers/login_rate_limiter.dart</code><code>lib/services/network_service.dart:78-119</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>The 5-attempt limiter lives in widget State: it resets on restart, screen re-entry, and reinstall, and the QR login path has none. Worse, <code>NetworkService</code> retries unrecognized <code>FirebaseAuthException</code> codes (wrong-password, user-not-found) up to 4× — burning the legitimate user's own throttle budget and quadrupling a brute-force script's request cost.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Never retry <code>FirebaseAuthException</code> (auth outcomes are deterministic); treat the limiter as UX and rely on Auth throttling + Identity Platform quotas.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-6</span></div>
+  <h3>Last-writer-wins sync with dead conflict-recording code</h3>
+  <div class="refs"><code>lib/services/sync_service.dart:780-799,848-874</code><code>lib/services/database_service.dart:168-235</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>Two devices editing the same product or sale offline silently lose one side's changes — locally-modified records always win on push and are never compared against the server version. The conflict-logging infrastructure (<code>logConflict</code>, <code>getConflicts</code>) exists but has zero callers.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Wire the conflict recorder into the pull path, or at minimum surface "server copy won" to the user.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-7</span></div>
+  <h3>Receipt PDFs containing customer PII are left in the cache forever</h3>
+  <div class="refs"><code>lib/services/printing_service.dart:159-162,376-379</code><code>lib/services/receipt_renderer.dart:138-145</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd><code>invoice_&lt;id&gt;.pdf</code> — rendered with customer name and phone — is written to the temp directory for sharing and never deleted.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Delete the temp file once the share sheet completes, or share bytes without a temp file where supported.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-8</span></div>
+  <h3>Firebase Analytics ships in the Android build, undisclosed in the privacy policy</h3>
+  <div class="refs"><code>android/app/build.gradle.kts:87</code><code>android/app/src/main/AndroidManifest.xml:13-15</code><code>assets/translations/en.json:661</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>Crashlytics is disabled but Analytics auto-collects by default; the policy discloses only camera use. A policy-vs-reality gap with compliance implications.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Drop the dependency if unused, or add the opt-out meta-data and a policy disclosure.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-9</span></div>
+  <h3>Subscription state is fetched four times per login, via queries</h3>
+  <div class="refs"><code>lib/services/auth_service.dart:163,178</code><code>lib/services/firebase_service.dart:184</code><code>lib/screens/login_screen.dart:181</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>Three near-identical "best subscription" loops plus a fourth call run a <code>subscriptions</code> collection query each login where a single doc-get would do. This is also the tier-4 duplication left open in the previous audit.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">One <code>subscriptions/{uid}</code> doc get per login; consolidate the three loops into one method.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-10</span></div>
+  <h3>sale_items create/update never verifies the referenced sale</h3>
+  <div class="refs"><code>firestore.rules:94-96</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>A user can create line items whose <code>sale_id</code> points at another tenant's sale or any arbitrary string (the <code>get()</code> check was dropped for batch compatibility). No cross-tenant read is possible — impact is junk data and wasted writes — but it also means no validation of price/quantity/subtotal.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Move items to a subcollection <code>sales/{saleId}/items/{id}</code> so ownership is structural, or validate a composite owner-keyed reference.</dd>
+  </dl>
+</article>
+
+<article class="finding" style="--sev:var(--medium);--sev-bg:var(--medium-bg)">
+  <div class="fhead"><span class="chip">Medium</span><span class="fid">M-11</span></div>
+  <h3>Remote Config trial_days clamps 0–365 — one misconfig hands out year-long trials</h3>
+  <div class="refs"><code>lib/services/remote_config_service.dart:14-15,22-33</code></div>
+  <dl>
+    <dt>What's wrong</dt>
+    <dd>The clamp matches the rules' 366-day cap (C-3), so a loose collaborator or a fat-fingered publish can silently grant 365-day trials to everyone.</dd>
+    <dt class="fix">Fix</dt>
+    <dd class="fix">Tighten the clamp to 0–30; verify the published value is 7 and who holds Remote Config edit rights.</dd>
+  </dl>
+</article>
+
+<h2><span class="rule"></span>Low</h2>
+<ul class="compact">
+  <li><b>users collection skips field validation</b> — <code>firestore.rules:51-53</code> allows any owner to write arbitrary fields/size into their own doc, unlike every other collection.</li>
+  <li><b>Trial create accepts unconstrained extra fields</b> and an arbitrary <code>start_date</code> — <code>firestore.rules:39-49</code>; bounded because the doc freezes after create.</li>
+  <li><b>No CSP headers</b> — <code>web/index.html</code> and <code>firebase.json</code> configure none; add hosting headers.</li>
+  <li><b>Categories cache survives logout</b> — <code>clearUserData</code> misses <code>_cachedCategories</code>; user B can briefly see user A's categories in-memory.</li>
+  <li><b>Dead weak session checks</b> — <code>FirebaseService.validateSession</code>/<code>isLoggedIn</code> (no uid match) have zero callers; delete before someone wires them in.</li>
+  <li><b>Password policy copy mismatch</b> — UI says 6 chars, effective policy is 8+/2 classes; no common-password denylist.</li>
+  <li><b>AppConfig.pullCooldown is dead code</b> — sync uses its own 30-min constant; drift trap.</li>
+  <li><b>getCategories() pulls the whole products collection unbounded</b> when the cache is empty — <code>firebase_service.dart:985-989</code>.</li>
+  <li><b>Release builds silently fall back to the debug keystore</b> — <code>build.gradle.kts:60-64</code>; fail the build instead.</li>
+  <li><b>Batch-commit fallback can double-write</b> already-committed docs on partial failure — idempotent <code>set()</code>, so cost only.</li>
+</ul>
+
+<h2><span class="rule"></span>Firebase console checklist</h2>
+<p class="lede">These can't be verified from the repo — each is a console-side setting that materially changes the risk of the findings above.</p>
+<ol class="check">
+  <li><b>App Check enforcement</b> for Firestore and Identity Toolkit — currently monitored-at-best (M-2, C-3).</li>
+  <li><b>API key restrictions</b> — Android key: package + SHA-1; web key: HTTP referrers (M-4).</li>
+  <li><b>Auth authorized domains</b> — only domains you actually serve the web app from.</li>
+  <li><b>Composite indexes deployed</b> from firestore.indexes.json — otherwise the 120k-reads/day fallback is live (H-6).</li>
+  <li><b>Cloud Storage</b> — disable the API (unused) or deploy rules (M-3).</li>
+  <li><b>Remote Config</b> — published trial_days = 7; audit who can edit (M-11).</li>
+  <li><b>Budget alerts</b> on Firestore reads/writes — the owner's first line of bill defense.</li>
+</ol>
+
+<h2><span class="rule"></span>Recommended fix order</h2>
+<ol class="prio">
+  <li><span class="tag" style="background:var(--critical-bg);color:var(--critical)">C-3</span>Tighten the trial rule cap to +8 days (one-line rules change) — closes the year-trial override today.</li>
+  <li><span class="tag" style="background:var(--critical-bg);color:var(--critical)">C-2</span>Server-first paywall with a capped lease.</li>
+  <li><span class="tag" style="background:var(--critical-bg);color:var(--critical)">C-1</span>QR login → server-minted one-time token.</li>
+  <li><span class="tag" style="background:var(--high-bg);color:var(--high)">H-1</span>Sync uid guard + fail-safe logout.</li>
+  <li><span class="tag" style="background:var(--high-bg);color:var(--high)">H-5</span>One-line deleteSale filter fix.</li>
+  <li><span class="tag" style="background:var(--high-bg);color:var(--high)">H-6</span>Verify indexes deployed; set budget alerts (console checklist items 4, 7).</li>
+  <li><span class="tag" style="background:var(--medium-bg);color:var(--medium)">M-2/M-4</span>App Check providers + enforcement; key restrictions (console items 1–3).</li>
+  <li><span class="tag" style="background:var(--high-bg);color:var(--high)">H-2/H-3/H-4</span>Auth hardening: generic errors, password change, phone verification.</li>
+  <li><span class="tag" style="background:var(--medium-bg);color:var(--medium)">M-1</span>print() sweep; then the medium/low remainder.</li>
+</ol>
+
+<h2><span class="rule"></span>Verified OK</h2>
+<ul class="okgrid">
+  <li>Cross-tenant reads/writes blocked on every collection — ownership checked on all paths; doc ids are UUIDv4, not guessable.</li>
+  <li>Trial doc is frozen after create (<code>update, delete: if false</code>); one per uid enforced; batch/timing circumvention not possible.</li>
+  <li>All seven Hive boxes AES-encrypted; key in Keystore-backed secure storage; legacy plaintext boxes deleted on migration.</li>
+  <li><code>allowBackup=false</code>; cleartext blocked by targetSdk 34; minimal permissions; only the launcher exported.</li>
+  <li>No custom HTTP endpoints — all traffic via Firebase SDKs over TLS.</li>
+  <li>No Firestore listeners anywhere — zero keepalive read cost.</li>
+  <li>Sync is event-driven; push uploads only unsynced docs; watermark advances only on full success.</li>
+  <li>Honest-data expiry correctly locks the app both online and offline.</li>
+  <li>No service-account or secret material in the repo; web/index.html is a clean template.</li>
+  <li>Privacy policy accurate on data collected, camera use, and local wipe (nits: names unused Storage; omits Analytics).</li>
+</ul>
+
+<footer>
+  Generated 2026-09-02 from four parallel read-only audits of the repository at <code>hanotiapp-master</code>. Line references are to the working tree at commit <code>ea361ba</code>. Console-side items are flagged as verify-in-console and were not independently confirmed.
+</footer>
+
+</div>
+</body>
+</html>

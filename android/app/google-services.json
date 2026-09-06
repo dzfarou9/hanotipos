@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "542408928460",
+    "project_id": "hanoti-farou9",
+    "storage_bucket": "hanoti-farou9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:542408928460:android:d27df1ad931b2b6664e669",
+        "android_client_info": {
+          "package_name": "com.farou9.hanoti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDc0fNZqrBCxNOGDDg7cuRk_8dluehoODI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

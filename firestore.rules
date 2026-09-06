@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // إنشاء: بمعرّف المستخدم الحالي فقط.
+    function canCreate(userId) {
+      return isOwner(userId) && request.resource.data.user_id == userId;
+    }
+
+    // قراءة/حذف: المستند المملوك فقط.
+    // ملاحظة: request.resource غير متاح في عمليات القراءة/الحذف.
+    function canAccessOwned() {
+      return signedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // تحديث: المستند مملوك ولا يمكن تغيير المالك.
+    // السماح بالتحديثات الجزئية التي لا تتضمن user_id
+    // (لا يمكن تغيير المالك عبر set() كامل أو update جزئي).
+    function canUpdateOwned() {
+      return signedIn()
+        && resource.data.user_id == request.auth.uid
+        && (!('user_id' in request.resource.data)
+            || request.resource.data.user_id == resource.data.user_id);
+    }
+
+    // إنشاء اشتراك تجريبي فقط: وثيقة واحدة لكل مستخدم،
+    // خصائص trial صارمة، ومدى زمني يحترم أيام التجربة.
+    // ⭐ الحد الأقصى الآن ديناميكي عبر Remote Config (trial_days)؛
+    // قواعد Firestore لا تستطيع قراءته، لذا نضع حداً أقصى ثابتاً
+    // يطابق حدّ الكود الأقصى لأيام التجربة (14 يوماً) + يوم سماح.
+    // كما أن start_date محصور في الماضي القريب (يومان سماح) حتى
+    // لا يُمنح تاريخ بداية في المستقبل البعيد.
+    function isValidTrialCreate(data) {
+      return data.user_id == request.auth.uid
+        && data.id == request.auth.uid
+        && data.plan_type == 'trial'
+        && data.is_active == true
+        && data.auto_renew == false
+        && data.start_date is timestamp
+        && data.end_date is timestamp
+        && data.start_date <= request.time
+        && data.start_date >= request.time + duration.value(-2, 'd')
+        && data.end_date >= request.time
+        && data.end_date <= request.time + duration.value(15, 'd');
+    }
+
+    match /users/{userId} {
+      // إنشاء: وثيقة المستخدم بمعرّف المصادقة نفسه فقط
+      // (الكود يكتب حقل id وليس user_id).
+      allow create: if isOwner(userId)
+        && request.resource.data.id == userId;
+      // تحديث: المالك فقط، ولا يمكن تغيير معرّف المالك.
+      allow update: if isOwner(userId)
+        && request.resource.data.id == resource.data.id;
+      // قراءة/حذف: المالك فقط.
+      allow read, delete: if isOwner(userId);
+    }
+
+    match /products/{id} {
+      allow create: if canCreate(request.auth.uid);
+      allow read: if canAccessOwned();
+      allow update: if canUpdateOwned();
+      allow delete: if canAccessOwned();
+    }
+
+    match /sales/{id} {
+      allow create: if canCreate(request.auth.uid);
+      allow read: if canAccessOwned();
+      allow update: if canUpdateOwned();
+      allow delete: if canAccessOwned();
+    }
+
+    match /inventory_movements/{id} {
+      allow create: if canCreate(request.auth.uid);
+      allow read: if canAccessOwned();
+      allow update: if canUpdateOwned();
+      allow delete: if canAccessOwned();
+    }
+
+    match /suppliers/{id} {
+      allow create: if canCreate(request.auth.uid);
+      allow read: if canAccessOwned();
+      allow update: if canUpdateOwned();
+      allow delete: if canAccessOwned();
+    }
+
+    match /purchases/{id} {
+      allow create: if canCreate(request.auth.uid);
+      allow read: if canAccessOwned();
+      allow update: if canUpdateOwned();
+      allow delete: if canAccessOwned();
+    }
+
+    match /customers/{id} {
+      allow create: if canCreate(request.auth.uid);
+      allow read: if canAccessOwned();
+      allow update: if canUpdateOwned();
+      allow delete: if canAccessOwned();
+    }
+
+    match /debt_transactions/{id} {
+      allow create: if signedIn()
+        && request.resource.data.customer_id is string
+        && request.resource.data.amount is number
+        && request.resource.data.type in ['debt', 'payment', 'adjustment']
+        && request.resource.data.user_id == request.auth.uid;
+      allow read: if signedIn()
+        && resource.data.user_id == request.auth.uid;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    match /sale_items/{id} {
+      // إنشاء/تحديث: البند يحمل user_id للمشتري ويشير لمبيعة.
+      // لا نستخدم get() هنا لأن عمليات البثّ (batch) لا ترى
+      // وثيقة المبيعة عند إنشائها معاً في نفس الباتش.
+      allow create, update: if signedIn()
+        && request.resource.data.sale_id is string
+        && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.id is string
+        && request.resource.data.product_id is string
+        && request.resource.data.product_name is string
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity >= 0
+        && request.resource.data.subtotal is number;
+
+      // قراءة/حذف: بند يملكه المستخدم الحالي فقط.
+      // (دون get() حتى تبقى الاستعلامات ممكنة على المجموعة).
+      allow read, delete: if signedIn()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    match /subscriptions/{docId} {
+      // القراءة تُسمح لمن يملك الاشتراك فعلاً عبر حقل user_id
+      // (وهذا يشمل الاشتراكات القديمة ذات المعرفات العشوائية)،
+      // أو عند تطابق معرف الوثيقة نفسه مع المستخدم الحالي.
+      allow read: if signedIn()
+        && (resource.data.user_id == request.auth.uid
+            || docId == request.auth.uid);
+
+      // إنشاء الاشتراك التجريبي الأول فقط، وفي وثيقة بمعرّف المستخدم نفسه.
+      allow create: if signedIn()
+        && docId == request.auth.uid
+        && isValidTrialCreate(request.resource.data)
+        && !exists(/databases/$(database)/documents/subscriptions/$(request.auth.uid));
+      // التعديل/الحذف للعميل ممنوع تماماً؛ الاشتراكات المدفوعة تُدار
+      // عبر Cloud Functions / Admin SDK التي تتجاوز القواعد.
+      allow update, delete: if false;
+    }
+  }
+}
