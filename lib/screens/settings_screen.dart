@@ -1,6 +1,5 @@
 // lib/screens/settings_screen.dart
 
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show ImageByteFormat;
@@ -15,7 +14,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../config/app_config.dart';
-import '../config/qr_login_config.dart';
 import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
 import '../services/database_service.dart';
@@ -829,9 +827,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? qrData;
     String? qrError;
     var isVerifying = false;
-    // ⭐ مجدول إعادة توليد الرمز: IV جديد وانتهاء جديد كل 30 ثانية
-    // ما دامت النافذة مفتوحة، يُلغى عند إغلاقها.
-    Timer? qrRefreshTimer;
+    var isRegenerating = false;
+    // ⭐ الرمز دائم (بلا انتهاء) — الإلغاء يتم بإعادة توليد الملح.
 
     await showDialog(
       context: context,
@@ -903,22 +900,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setDialogState(() {
                 isVerifying = false;
                 qrData = data;
-              });
-              // ⭐ تجديد الرمز كل 30 ثانية (صلاحية 45 ثانية) لتقليص
-              // نافذة سرقة صورة قديمة — يُلغى الجدول عند إغلاق النافذة.
-              qrRefreshTimer?.cancel();
-              qrRefreshTimer =
-                  Timer.periodic(QrLoginConfig.qrRefreshInterval, (_) {
-                if (!ctx.mounted) {
-                  qrRefreshTimer?.cancel();
-                  return;
-                }
-                final fresh = QrLoginService.encryptCredentials(
-                  phone: phone,
-                  password: passwordController.text,
-                  salt: salt!,
-                );
-                setDialogState(() => qrData = fresh);
               });
             } catch (e) {
               if (!ctx.mounted) return;
@@ -1088,7 +1069,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        LocalizationHelper.qrLoginExpiryNote,
+                        LocalizationHelper.qrLoginPermanentNote,
                         textAlign: TextAlign.center,
                         style: AppTextStyles.caption(
                             color: isDark
@@ -1114,6 +1095,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(
                                 color: accentColor.withValues(alpha: 0.5)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: isRegenerating
+                              ? null
+                              : () async {
+                                  final confirmed =
+                                      await _confirmRegenerateQr(ctx);
+                                  if (confirmed != true) return;
+                                  setDialogState(
+                                      () => isRegenerating = true);
+                                  try {
+                                    final db = DatabaseService.instance;
+                                    final newSalt =
+                                        QrLoginService.generateSalt();
+                                    await db.saveQrSalt(newSalt);
+                                    final data =
+                                        QrLoginService.encryptCredentials(
+                                      phone: phone,
+                                      password: passwordController.text,
+                                      salt: newSalt,
+                                    );
+                                    setDialogState(() {
+                                      qrData = data;
+                                      isRegenerating = false;
+                                    });
+                                  } catch (e) {
+                                    AppConfig.logError(
+                                        'QR regenerate error', e);
+                                    setDialogState(
+                                        () => isRegenerating = false);
+                                  }
+                                },
+                          icon: isRegenerating
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                            AppColors.white),
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.refresh_rounded,
+                                  size: 18,
+                                  color: AppColors.error,
+                                ),
+                          label: Text(
+                            LocalizationHelper.qrLoginRegenerate,
+                            style: AppTextStyles.buttonText(
+                                color: AppColors.error, fontSize: 14),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                                color: AppColors.error.withValues(alpha: 0.5)),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
@@ -1164,9 +1208,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     // ⭐ إيقاف التجديد التلقائي فور إغلاق النافذة
-    qrRefreshTimer?.cancel();
     passwordController.clear();
     passwordController.dispose();
+  }
+
+  // ⭐ تأكيد إعادة توليد الرمز الدائم — يعيد true عند الموافقة فقط
+  Future<bool?> _confirmRegenerateQr(BuildContext dialogContext) {
+    return showDialog<bool>(
+      context: dialogContext,
+      builder: (confirmCtx) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          LocalizationHelper.qrLoginRegenerateTitle,
+          style: const TextStyle(
+              fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        content: Text(LocalizationHelper.qrLoginRegenerateBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(confirmCtx, false),
+            child: Text(LocalizationHelper.cancel,
+                style: const TextStyle(color: AppColors.grey500)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(confirmCtx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(LocalizationHelper.confirm),
+          ),
+        ],
+      ),
+    );
   }
 
   // ⭐ تنزيل رمز QR كصورة PNG

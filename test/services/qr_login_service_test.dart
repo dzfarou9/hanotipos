@@ -6,14 +6,14 @@ void main() {
   const salt = '0123456789abcdef0123456789abcdef';
 
   group('QrLoginService', () {
-    test('encryptCredentials produces a v4 string with the app prefix', () {
+    test('encryptCredentials produces a v5 string with the app prefix', () {
       final raw = QrLoginService.encryptCredentials(
         phone: '0551234567',
         password: 'secret123',
         salt: salt,
       );
 
-      expect(raw.startsWith('HANOTI_QR:4:$salt:'), isTrue);
+      expect(raw.startsWith('HANOTI_QR:5:$salt:'), isTrue);
     });
 
     test('decryptCredentials returns the original phone and password', () {
@@ -30,6 +30,20 @@ void main() {
       expect(credentials.password, 'secret123');
     });
 
+    test('v5 credentials never expire (no expiry check in decryption)', () {
+      final raw = QrLoginService.encryptCredentials(
+        phone: '0551234567',
+        password: 'secret123',
+        salt: salt,
+      );
+
+      // الرمز الدائم يجب أن يبقى صالحاً مهما مضى الوقت — لا يوجد فحص
+      // لتاريخ الانتهاء، لذا نجتاز فك التشفير فوراً وبعد أي مدة.
+      final credentials = QrLoginService.decryptCredentials(raw);
+
+      expect(credentials, isNotNull);
+    });
+
     test('decryptCredentials returns null for a string without the prefix',
         () {
       final credentials =
@@ -40,7 +54,7 @@ void main() {
 
     test('decryptCredentials returns null for garbage after the prefix', () {
       final credentials = QrLoginService
-          .decryptCredentials('HANOTI_QR:4:$salt:not-valid-base64!!');
+          .decryptCredentials('HANOTI_QR:5:$salt:not-valid-base64!!');
 
       expect(credentials, isNull);
     });
@@ -53,17 +67,12 @@ void main() {
       expect(credentials, isNull);
     });
 
-    test('decryptCredentials rejects an invalid salt format', () {
-      final raw = QrLoginService.encryptCredentials(
-        phone: '0551234567',
-        password: 'secret123',
-        salt: salt,
-      );
-      // استبدال الملح بصيغة غير ست عشرية يجب أن يفكك التحقق
-      final badSalt = 'ZZZZ456789abcdef0123456789abcdef';
-      final tampered = raw.replaceFirst(salt, badSalt);
+    test('decryptCredentials rejects legacy v4 payloads (expiring format)', () {
+      // صيغة v4 القصيرة العمر تُرفض بعد الانتقال إلى v5 الدائم
+      final credentials =
+          QrLoginService.decryptCredentials('HANOTI_QR:4:$salt:somepayload');
 
-      expect(QrLoginService.decryptCredentials(tampered), isNull);
+      expect(credentials, isNull);
     });
 
     test('decryptCredentials returns null for tampered encrypted payload', () {
@@ -72,10 +81,10 @@ void main() {
         password: 'secret123',
         salt: salt,
       );
-      final payload = raw.substring('HANOTI_QR:4:$salt:'.length);
+      final payload = raw.substring('HANOTI_QR:5:$salt:'.length);
 
       final tampered =
-          'HANOTI_QR:4:$salt:${payload.substring(0, payload.length - 1)}x';
+          'HANOTI_QR:5:$salt:${payload.substring(0, payload.length - 1)}x';
 
       expect(QrLoginService.decryptCredentials(tampered), isNull);
     });
@@ -125,30 +134,6 @@ void main() {
 
     test('decryptCredentials returns null for an empty string', () {
       expect(QrLoginService.decryptCredentials(''), isNull);
-    });
-
-    test('decryptCredentials returns null for an expired code', () {
-      // تتجاوز المدة سماحية فرق الساعة (10 ثوانٍ) فيُرفض الرمز منتهياً
-      final raw = QrLoginService.encryptCredentials(
-        phone: '0551234567',
-        password: 'secret123',
-        salt: salt,
-        validity: const Duration(seconds: -30),
-      );
-
-      expect(QrLoginService.decryptCredentials(raw), isNull);
-    });
-
-    test('decryptCredentials rejects a forged far-future expiry', () {
-      // لا يجوز لملفّق أن يطيل عمر الحمولة beyond maxFutureSkew (120s)
-      final raw = QrLoginService.encryptCredentials(
-        phone: '0551234567',
-        password: 'secret123',
-        salt: salt,
-        validity: const Duration(days: 1),
-      );
-
-      expect(QrLoginService.decryptCredentials(raw), isNull);
     });
   });
 }

@@ -799,7 +799,10 @@ class LocalizationHelper {
 
   // ==================== رمز QR: تحذيرات وأخطاء ====================
   static String get qrLoginSecurityWarning => 'qr_login.security_warning'.tr();
-  static String get qrLoginExpiryNote => 'qr_login.expiry_note'.tr();
+  static String get qrLoginPermanentNote => 'qr_login.permanent_note'.tr();
+  static String get qrLoginRegenerate => 'qr_login.regenerate'.tr();
+  static String get qrLoginRegenerateTitle => 'qr_login.regenerate_title'.tr();
+  static String get qrLoginRegenerateBody => 'qr_login.regenerate_body'.tr();
   static String get qrLoginNotRendered => 'qr_login.not_rendered'.tr();
   static String get qrLoginEncodeFailed => 'qr_login.encode_failed'.tr();
   static String get qrLoginInvalidSalt => 'qr_login.invalid_salt'.tr();

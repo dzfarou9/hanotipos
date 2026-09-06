@@ -25,31 +25,38 @@ class QrLoginCredentials {
 
 /// تشفير بيانات الدخول (رقم الهاتف + كلمة المرور) داخل رمز QR وفك تشفيرها.
 ///
-/// الصيغة (الإصدار 4):
-/// `HANOTI_QR:4:<salt>:<base64(IV + AES-256-CBC(json))>`
+/// الصيغة (الإصدار 5):
+/// `HANOTI_QR:5:<salt>:<base64(IV + AES-256-CBC(json))>`
 /// حيث `salt` ملح عشوائي (32 حرفاً ست عشرية) يُولَّد مرة واحدة لكل حساب
 /// ويُخزَّن في Hive، ومفتاح AES = SHA-256(السر الأساسي + الملح) — أي أن
 /// المفتاح يختلف لكل حساب ولم يعد مفتاحاً واحداً ثابتاً في كل APK.
 /// الملح يسافر خارج النص المشفر (في الرمز نفسه) لأن جهاز المسح يحتاجه
 /// لاشتقاق المفتاح.
 ///
-/// الإصدار 3 (وكل ما سبقه) يستخدم مفتاحاً عالمياً ثابتاً — يُرفض فوراً.
+/// الإصدار 5 رمز دائم: لا يوجد تاريخ انتهاء في الحمولة، والإلغاء يتم
+/// بإعادة توليد الملح من شاشة الإعدادات (رمز جديد = كل النسخ القديمة
+/// المطبوعة أو المحفوظة تتوقف عن العمل فوراً).
+///
+/// الإصدار 4 (وكل ما سبقه) يستخدم صلاحية قصيرة/مفتاحاً عالمياً — يُرفض فوراً.
 /// البادئة تُمكّن الماسح من التحقق بسرعة أن الرمز خاص بالتطبيق.
 ///
 // TODO(C-1): حل مؤقت — الرمز ما زال يحمل كلمة المرور الحقيقية، ومن يفكّك
 //   APK يستطيع استخراج السر الأساسي وقراءة الملح من الصورة، لذا التشفير
-//   هنا إخفاء وليس حماية. الحل الجذري: توكن قصير العمر لمرة واحدة يُصدره
-//   الخادم (Cloud Functions) بدل كلمة المرور، مع إلغاء الصلاحية في الخادم
-//   (انظر الشرح الكامل في lib/config/qr_login_config.dart).
+//   هنا إخفاء وليس حماية، والرمز الدائم يوسّع نافذة الضرر عند تسرّب
+//   صورته. الحل الجذري: توكن لمرة واحدة/قابل للإلغاء يُصدره الخادم
+//   (Cloud Functions) بدل كلمة المرور (انظر الشرح الكامل في
+//   lib/config/qr_login_config.dart). إعادة توليد الملح هي صمام الأمان
+//   حتى ذلك الحين.
 class QrLoginService {
   QrLoginService._();
 
   static const String _scheme = 'HANOTI_QR';
-  static const String _version = '4';
+  static const String _version = '5';
   static final RegExp _saltPattern = RegExp(r'^[0-9a-f]{32}$');
 
   /// يولّد ملحاً عشوائياً جديداً (32 حرفاً ست عشرية) — يُستدعى مرة واحدة
   /// لكل حساب عند أول توليد لرمز QR ويُخزَّن عبر DatabaseService.saveQrSalt.
+  /// استدعاؤه مجدداً واستبدال الملح المخزَّن يُلغي كل الرموز القديمة.
   static String generateSalt() {
     final random = Random.secure();
     final buffer = StringBuffer();
@@ -67,26 +74,22 @@ class QrLoginService {
   }
 
   /// يشفر رقم الهاتف وكلمة المرور ويعيد نص الرمز الجاهز للعرض في QR.
-  /// يحتوي الرمز على وقت انتهاء صلاحية قصير (45 ثانية) لتصغير نافذة
-  /// السرقة، وعلى IV عشوائي مُضمَّن في الحمولة نفسها ليتمكن الطرف الآخر
-  /// من فكّه، وملح الحساب خارج النص المشفر لاشتقاق المفتاح.
+  /// الرمز دائم (بلا تاريخ انتهاء)، ويحمل IV عشوائياً مُضمَّناً في
+  /// الحمولة نفسها ليتمكن الطرف الآخر من فكّه، وملح الحساب خارج النص
+  /// المشفر لاشتقاق المفتاح.
   static String encryptCredentials({
     required String phone,
     required String password,
     required String salt,
-    Duration? validity,
   }) {
     if (!_saltPattern.hasMatch(salt)) {
       throw ArgumentError.value(
           salt, 'salt', LocalizationHelper.qrLoginInvalidSalt);
     }
-    final now = DateTime.now();
-    final expiresAt = now.add(validity ?? QrLoginConfig.qrValidity);
     final json = jsonEncode({
       'phone': phone,
       'password': password,
-      'issued_at': now.toIso8601String(),
-      'expires_at': expiresAt.toIso8601String(),
+      'issued_at': DateTime.now().toIso8601String(),
     });
     final iv = encrypt.IV.fromSecureRandom(16);
     final encrypter = encrypt.Encrypter(encrypt.AES(_deriveKey(salt)));
@@ -97,12 +100,13 @@ class QrLoginService {
   }
 
   /// يفك تشفير محتوى الرمز ويعيد بيانات الاعتماد، أو null إذا كان الرمز
-  /// غير صالح أو منتهي الصلاحية أو لا يخص التطبيق أو من إصدار قديم (v3).
+  /// غير صالح أو لا يخص التطبيق أو من إصدار قديم (v4 وما قبله).
+  /// لا يوجد فحص صلاحية — الإصدار 5 دائم، والإلغاء بإعادة توليد الملح.
   static QrLoginCredentials? decryptCredentials(String raw) {
     if (raw.isEmpty) return null;
 
-    // الصيغة: HANOTI_QR:4:<salt>:<base64> — حمولة base64 لا تحتوي ':'
-    // أبداً، لذا التقسيم آمن. أي إصدار آخر (مثل 3) يُرفض.
+    // الصيغة: HANOTI_QR:5:<salt>:<base64> — حمولة base64 لا تحتوي ':'
+    // أبداً، لذا التقسيم آمن. أي إصدار آخر (مثل 4 و3) يُرفض.
     final parts = raw.split(':');
     if (parts.length != 4 || parts[0] != _scheme || parts[1] != _version) {
       return null;
@@ -126,21 +130,6 @@ class QrLoginService {
       final password = data['password'] as String?;
       if (phone == null || phone.isEmpty) return null;
       if (password == null || password.isEmpty) return null;
-
-      final expiresAt = DateTime.tryParse(data['expires_at'] as String? ?? '');
-      if (expiresAt == null) return null;
-
-      // ⭐ فحص الصلاحية مع سماحية ساعة محدودة:
-      // نرفض منتهي الصلاحية (بسماحية 10 ثوانٍ فقط لفرق الساعة بين
-      // الجهازين)، ونرفض أيضاً كل تاريخ انتهاء أبعد من الآن + 120 ثانية
-      // حتى لا يُطيل ملّفِقٌ عمر حمولة معدّلة يدوياً.
-      final now = DateTime.now();
-      if (expiresAt.isBefore(now.subtract(QrLoginConfig.maxClockSkew))) {
-        return null;
-      }
-      if (expiresAt.isAfter(now.add(QrLoginConfig.maxFutureSkew))) {
-        return null;
-      }
 
       return QrLoginCredentials(phone: phone, password: password);
     } catch (_) {

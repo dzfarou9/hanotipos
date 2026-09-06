@@ -87,7 +87,10 @@
     "downloaded": "Code QR téléchargé avec succès",
     "download_error": "Impossible de télécharger le code QR",
     "security_warning": "Ne partagez pas cette image — elle contient vos données de connexion",
-    "expiry_note": "Ce code est valable 45 secondes seulement et se renouvelle automatiquement.",
+    "permanent_note": "Ce code est permanent et n'expire jamais. Conservez-le en lieu sûr — quiconque le scanne peut accéder à votre compte.",
+    "regenerate": "Régénérer le code (invalider l'ancien)",
+    "regenerate_title": "Régénérer le code QR ?",
+    "regenerate_body": "Un nouveau code sera généré et tout code précédemment imprimé ou enregistré cessera de fonctionner immédiatement.",
     "not_rendered": "Le code QR n'est pas encore généré",
     "encode_failed": "Impossible d'encoder l'image du code QR",
     "invalid_salt": "Salt QR invalide : 32 caractères hexadécimaux requis"

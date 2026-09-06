@@ -87,7 +87,10 @@
     "downloaded": "QR code downloaded successfully",
     "download_error": "Could not download the QR code",
     "security_warning": "Don't share this image — it contains your login data",
-    "expiry_note": "This code is valid for 45 seconds only and refreshes automatically.",
+    "permanent_note": "This code is permanent and doesn't expire. Keep it safe — anyone who scans it can access your account.",
+    "regenerate": "Regenerate code (invalidate old)",
+    "regenerate_title": "Regenerate QR code?",
+    "regenerate_body": "A new code will be generated and any previously printed or saved code will stop working immediately.",
     "not_rendered": "QR code is not rendered yet",
     "encode_failed": "Failed to encode QR code image",
     "invalid_salt": "Invalid QR salt: must be 32 hex characters"
