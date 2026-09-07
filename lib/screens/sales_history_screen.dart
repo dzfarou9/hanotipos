@@ -1049,7 +1049,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      '${item.quantity}',
+                      QuantityFormat.quantity(item.quantity),
                       style: AppTextStyles.caption(
                         color: isReturned ? AppColors.warning : accentColor,
                         fontSize: 10,
@@ -1758,8 +1758,8 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           ),
           child: Text(
             isReturned
-                ? '${item.productName} (${item.quantity}) ✕ ${'sales_history.returned'.tr()}'
-                : '${item.productName} (${item.quantity})',
+                ? '${item.productName} (${QuantityFormat.quantity(item.quantity)}) ✕ ${'sales_history.returned'.tr()}'
+                : '${item.productName} (${QuantityFormat.quantity(item.quantity)})',
             style: AppTextStyles.caption(
               color: isReturned ? AppColors.warning : bodyColor,
               fontSize: 10,

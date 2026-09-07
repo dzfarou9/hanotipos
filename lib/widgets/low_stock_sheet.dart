@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../models/product_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -292,7 +293,7 @@ class _ProductTile extends StatelessWidget {
               border: Border.all(color: tileColor.withValues(alpha: 0.35)),
             ),
             child: Text(
-              '${LocalizationHelper.printingQty}: ${product.quantity}',
+              '${LocalizationHelper.printingQty}: ${QuantityFormat.withUnit(product.quantity, LocalizationHelper.unitLabel(product.unit))}',
               style: AppTextStyles.caption(color: tileColor).copyWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 11,

@@ -8,6 +8,7 @@ import '../services/sync_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/design_tokens.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../widgets/sync_progress_widget.dart';
 import '../widgets/sync_status_widget.dart';
 // ⭐ إضافة import لـ DashboardMenu
@@ -467,7 +468,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         ),
                       ),
                       child: Text(
-                        '${cartService.totalItems}',
+                        QuantityFormat.quantity(cartService.totalItems),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,

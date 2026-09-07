@@ -13,6 +13,7 @@ import '../theme/design_tokens.dart';
 import '../theme/screen_palette.dart';
 import '../helpers/localization_helper.dart';
 import '../helpers/time_format_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/low_stock_sheet.dart';
 import '../widgets/app_snackbar.dart';
@@ -485,7 +486,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              '${item.quantity}',
+                              QuantityFormat.quantity(item.quantity),
                               style: AppTextStyles.caption(color: accentColor),
                             ),
                           ),

@@ -13,6 +13,7 @@ import '../theme/app_text_styles.dart';
 import '../theme/design_tokens.dart';
 import '../theme/screen_palette.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/barcode_scanner_view.dart';
 import '../widgets/inventory/inventory_search_field.dart';
@@ -931,7 +932,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${product.quantity}',
+                      '${QuantityFormat.quantity(product.quantity)} ${LocalizationHelper.unitLabel(product.unit)}',
                       style: AppTextStyles.caption(
                         color: isOutOfStock
                             ? AppColors.error

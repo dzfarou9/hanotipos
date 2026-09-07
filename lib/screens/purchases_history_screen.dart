@@ -8,6 +8,7 @@ import '../services/sync_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../widgets/app_snackbar.dart';
 import '../theme/design_tokens.dart';
 import '../theme/screen_palette.dart';
@@ -329,7 +330,7 @@ class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              '${item.quantity} × ${item.costPrice.toStringAsFixed(2)}',
+                              '${QuantityFormat.quantity(item.quantity)} × ${item.costPrice.toStringAsFixed(2)}',
                               style:
                                   AppTextStyles.caption(color: bodyColor),
                               textAlign: TextAlign.center,

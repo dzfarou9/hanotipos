@@ -5,6 +5,7 @@ import '../../models/product_model.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../helpers/localization_helper.dart';
+import '../../helpers/quantity_format.dart';
 
 /// بطاقة منتج في شبكة شاشة البيع.
 class POSProductGridItem extends StatelessWidget {
@@ -23,7 +24,7 @@ class POSProductGridItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLowStock =
         product.quantity <= product.minStockLevel && product.quantity > 0;
-    final isOutOfStock = product.quantity == 0;
+    final isOutOfStock = QuantityFormat.isZeroQty(product.quantity);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = isDark ? AppColors.neonOrange : AppColors.primary;
     return GestureDetector(

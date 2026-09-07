@@ -181,9 +181,11 @@ Future<void> showCheckoutConfirmationSheet(
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
-                                  '${item.quantity}',
+                                  QuantityFormat.withUnit(item.quantity, LocalizationHelper.unitLabel(item.product.unit)),
                                   style: AppTextStyles.caption(
                                       color: accentColor, fontSize: 10),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -286,11 +288,11 @@ Future<void> showCheckoutConfirmationSheet(
                           onError(LocalizationHelper.posProductNotFound);
                           return;
                         }
-                        if (item.quantity > product.quantity) {
+                        if (QuantityFormat.exceedsQty(item.quantity, product.quantity)) {
                           onError(
                             '${product.name}: '
                             '${LocalizationHelper.posOutOfStock}'
-                            ' (${product.quantity})',
+                            ' (${QuantityFormat.quantity(product.quantity)})',
                           );
                           return;
                         }
