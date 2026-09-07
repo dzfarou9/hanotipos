@@ -830,7 +830,7 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '${LocalizationHelper.posCart} (${cart.totalItems})',
+                    '${LocalizationHelper.posCart} (${QuantityFormat.quantity(cart.totalItems)})',
                     style: AppTextStyles.bodyMedium(),
                   ),
                 ],
@@ -1418,7 +1418,7 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(
-                                  '${cart.totalItems}',
+                                  QuantityFormat.quantity(cart.totalItems),
                                   style: AppTextStyles.overline(
                                     color: AppColors.white,
                                   ),
