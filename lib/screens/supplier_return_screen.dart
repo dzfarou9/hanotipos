@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+import '../helpers/quantity_format.dart';
 import '../models/purchase_model.dart';
 import '../services/database_service.dart';
 import '../services/sync_service.dart';
@@ -28,7 +29,7 @@ class _Row {
   final String productId;
   final String productName;
   final double costPrice;
-  final int cap;
+  final double cap;
 
   _Row({
     required this.productId,
@@ -46,7 +47,7 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
   final TextEditingController _noteController = TextEditingController();
 
   late final List<_Row> _rows;
-  late final Map<String, int> _returnQty;
+  late final Map<String, double> _returnQty;
   final Map<String, TextEditingController> _qtyControllers = {};
   bool _isSaving = false;
 
@@ -55,12 +56,12 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
     super.initState();
     // ⭐ المتاح للإرجاع = المشترى − المرتجع المحفوظ داخل السجل − المرتجعات
     // القديمة المستقلة، عبر availableForReturn في النموذج.
-    final legacyReturned = <String, int>{};
+    final legacyReturned = <String, double>{};
     for (final r in DatabaseService.instance
         .getReturnPurchasesFor(widget.originalPurchase.id)) {
       for (final item in r.items) {
         legacyReturned[item.productId] =
-            (legacyReturned[item.productId] ?? 0) + item.quantity;
+            (legacyReturned[item.productId] ?? 0.0) + item.quantity;
       }
     }
 
@@ -80,7 +81,7 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
     _returnQty = {for (final row in _rows) row.productId: row.cap};
     for (final row in _rows) {
       _qtyControllers[row.productId] =
-          TextEditingController(text: '${row.cap}');
+          TextEditingController(text: QuantityFormat.quantity(row.cap));
     }
   }
 
@@ -108,17 +109,19 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
     AppSnackBar.show(context, message, type: type);
   }
 
-  void _setQty(_Row row, int value) {
-    final clamped = value.clamp(0, row.cap);
+  void _setQty(_Row row, double value) {
+    var clamped = value;
+    if (value < 0 || QuantityFormat.isZeroQty(value)) clamped = 0.0;
+    if (QuantityFormat.exceedsQty(clamped, row.cap)) clamped = row.cap;
     if (_returnQty[row.productId] == clamped) return;
     setState(() {
       _returnQty[row.productId] = clamped;
-      _qtyControllers[row.productId]!.text = '$clamped';
+      _qtyControllers[row.productId]!.text = QuantityFormat.quantity(clamped);
     });
   }
 
   int get _selectedCount =>
-      _returnQty.values.where((q) => q > 0).length;
+      _returnQty.values.where((q) => QuantityFormat.greaterThanQty(q, 0)).length;
 
   double get _returnTotal {
     var total = 0.0;
@@ -131,14 +134,14 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
   Future<void> _saveReturn() async {
     final items = <PurchaseItem>[];
     for (final row in _rows) {
-      final qty = _returnQty[row.productId] ?? 0;
-      if (qty > 0) {
+      final qty = _returnQty[row.productId] ?? 0.0;
+      if (QuantityFormat.greaterThanQty(qty, 0)) {
         items.add(PurchaseItem(
           id: _uuid.v4(),
           productId: row.productId,
           productName: row.productName,
           costPrice: row.costPrice,
-          quantity: qty,
+          quantity: QuantityFormat.round(qty),
           subtotal: row.costPrice * qty,
         ));
       }
@@ -167,8 +170,8 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
     final titleColor = context.titleColor;
     final bodyColor = context.bodyColor;
     final captionColor = context.captionColor;
-    final disabled = row.cap == 0;
-    final qty = _returnQty[row.productId] ?? 0;
+    final disabled = QuantityFormat.isZeroQty(row.cap);
+    final qty = _returnQty[row.productId] ?? 0.0;
 
     return Opacity(
       opacity: disabled ? 0.5 : 1,
@@ -194,7 +197,7 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
                   ),
                 ),
                 Text(
-                  '${'purchases.availableForReturn'.tr()}: ${row.cap}',
+                  '${'purchases.availableForReturn'.tr()}: ${QuantityFormat.quantity(row.cap)}',
                   style: AppTextStyles.caption(
                       color: disabled ? context.errorColor : bodyColor,
                       fontSize: 11),
@@ -206,8 +209,8 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
               children: [
                 _buildStepperButton(
                   icon: Icons.remove_rounded,
-                  enabled: !disabled && qty > 0,
-                  onPressed: () => _setQty(row, qty - 1),
+                  enabled: !disabled && QuantityFormat.greaterThanQty(qty, 0),
+                  onPressed: () => _setQty(row, qty - 1.0),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -215,18 +218,35 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
                     height: 40,
                     child: TextField(
                       controller: _qtyControllers[row.productId],
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
                       inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
+                        TextInputFormatter.withFunction(
+                          (oldValue, newValue) {
+                            final t = newValue.text;
+                            final dotCount = '.'.allMatches(t).length;
+                            final ok = dotCount <= 1 &&
+                                RegExp(r'^\d*\.?\d{0,3}$').hasMatch(t);
+                            return ok ? newValue : oldValue;
+                          },
+                        ),
                       ],
                       textAlign: TextAlign.center,
                       enabled: !disabled,
                       onChanged: (value) {
-                        final parsed = int.tryParse(value) ?? 0;
-                        final clamped = parsed.clamp(0, row.cap);
-                        setState(() => _returnQty[row.productId] = clamped);
+                        final parsed = double.tryParse(value) ?? 0.0;
+                        var clamped = parsed;
+                        if (parsed < 0 || QuantityFormat.isZeroQty(parsed)) {
+                          clamped = 0.0;
+                        }
+                        if (QuantityFormat.exceedsQty(clamped, row.cap)) {
+                          clamped = row.cap;
+                        }
+                        setState(
+                            () => _returnQty[row.productId] = clamped);
                         if (parsed != clamped) {
-                          _qtyControllers[row.productId]!.text = '$clamped';
+                          _qtyControllers[row.productId]!.text =
+                              QuantityFormat.quantity(clamped);
                         }
                       },
                       style: AppTextStyles.bodyMedium(color: titleColor),
@@ -244,14 +264,16 @@ class _SupplierReturnScreenState extends State<SupplierReturnScreen> {
                 const SizedBox(width: 8),
                 _buildStepperButton(
                   icon: Icons.add_rounded,
-                  enabled: !disabled && qty < row.cap,
-                  onPressed: () => _setQty(row, qty + 1),
+                  enabled: !disabled &&
+                      QuantityFormat.exceedsQty(row.cap, qty),
+                  onPressed: () => _setQty(row, qty + 1.0),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
-              '${row.costPrice.toStringAsFixed(2)} $_currency × $qty = '
+              '${row.costPrice.toStringAsFixed(2)} $_currency × '
+              '${QuantityFormat.quantity(qty)} = '
               '${(row.costPrice * qty).toStringAsFixed(2)} $_currency',
               style:
                   AppTextStyles.caption(color: captionColor, fontSize: 11),
