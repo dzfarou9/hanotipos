@@ -268,7 +268,11 @@
     "quantity_required": "La quantité du produit est requise",
     "delete_local_server": "Le produit sera supprimé du stock local et du serveur.",
     "delete_server_failed": "Produit supprimé localement, mais la suppression sur le serveur a échoué. Nouvel essai plus tard.",
-    "delete_offline": "Pas de connexion Internet. Produit supprimé localement ; la suppression sera synchronisée plus tard."
+    "delete_offline": "Pas de connexion Internet. Produit supprimé localement ; la suppression sera synchronisée plus tard.",
+    "unit_label": "Unité de vente",
+    "unit_piece": "Pièce",
+    "unit_kg": "Kilogramme",
+    "unit_liter": "Litre"
   },
 
   "settings": {

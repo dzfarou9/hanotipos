@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../helpers/localization_helper.dart';
+import '../../helpers/quantity_format.dart';
 import '../../models/product_model.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -21,16 +22,22 @@ class ProductFormData {
     required this.barcode,
     required this.minStockLevel,
     this.costPrice,
+    this.unit = 'piece',
   });
 
   final String name;
   final double price;
-  final int quantity;
+
+  /// الكمية: عدد القطع أو الوزن/الحجم (كغ/لتر) حسب الوحدة.
+  final double quantity;
   final String? barcode;
   final int minStockLevel;
 
   /// سعر الشراء (التكلفة) — null يعني «غير محدد».
   final double? costPrice;
+
+  /// ⭐ وحدة البيع: 'piece' | 'kg' | 'litre'
+  final String unit;
 }
 
 /// Result of the product form dialog.
@@ -78,6 +85,9 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
   late final TextEditingController _quantityController;
   late final TextEditingController _minStockController;
 
+  /// ⭐ وحدة البيع المختارة ('piece' | 'kg' | 'litre')
+  late String _selectedUnit;
+
   bool get _isEditing => widget.product != null;
 
   @override
@@ -96,6 +106,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
         TextEditingController(text: product?.quantity.toString() ?? '');
     _minStockController =
         TextEditingController(text: product?.minStockLevel.toString() ?? '10');
+    _selectedUnit = product?.unit ?? 'piece';
   }
 
   @override
@@ -122,12 +133,13 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
         data: ProductFormData(
           name: _nameController.text.trim(),
           price: double.parse(_priceController.text),
-          quantity: int.parse(_quantityController.text),
+          quantity: QuantityFormat.round(double.parse(_quantityController.text)),
           barcode: _barcodeController.text.trim().isNotEmpty
               ? _barcodeController.text.trim()
               : null,
           minStockLevel: int.parse(_minStockController.text),
           costPrice: (cost != null && cost > 0) ? cost : null,
+          unit: _selectedUnit,
         ),
       ),
     );
@@ -233,6 +245,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                 ]),
                 const SizedBox(height: 14),
                 TextFormField(
+                  key: const Key('product_name_field'),
                   controller: _nameController,
                   decoration: InputDecoration(
                     labelText: LocalizationHelper.posProductName,
@@ -248,6 +261,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                 Row(children: [
                   Expanded(
                     child: TextFormField(
+                      key: const Key('product_price_field'),
                       controller: _priceController,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
@@ -283,10 +297,20 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextFormField(
+                      key: const Key('product_quantity_field'),
                       controller: _quantityController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
                       inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
+                        TextInputFormatter.withFunction(
+                          (oldValue, newValue) {
+                            final t = newValue.text;
+                            final dotCount = '.'.allMatches(t).length;
+                            final ok = dotCount <= 1 &&
+                                RegExp(r'^\d*\.?\d{0,3}$').hasMatch(t);
+                            return ok ? newValue : oldValue;
+                          },
+                        ),
                       ],
                       decoration: InputDecoration(
                         labelText: LocalizationHelper.posQuantity,
@@ -299,7 +323,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                         if (v == null || v.isEmpty) {
                           return LocalizationHelper.inventoryQuantityRequired;
                         }
-                        final value = int.tryParse(v);
+                        final value = double.tryParse(v);
                         if (value == null || value < 0) {
                           return LocalizationHelper.error;
                         }
@@ -308,6 +332,45 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                     ),
                   ),
                 ]),
+                const SizedBox(height: 14),
+                // ⭐ وحدة البيع: قطعة / كغ / لتر
+                Text(
+                  LocalizationHelper.inventoryUnitLabel,
+                  style: AppTextStyles.bodySmall(color: AppColors.grey400),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final entry in <String, String>{
+                      'piece': LocalizationHelper.inventoryUnitPiece,
+                      'kg': LocalizationHelper.inventoryUnitKg,
+                      'litre': LocalizationHelper.inventoryUnitLiter,
+                    }.entries)
+                      ChoiceChip(
+                        key: Key(
+                            'product_unit_${entry.key == 'litre' ? 'liter' : entry.key}'),
+                        label: Text(entry.value),
+                        selected: _selectedUnit == entry.key,
+                        onSelected: (_) =>
+                            setState(() => _selectedUnit = entry.key),
+                        selectedColor: accentColor.withValues(alpha: 0.2),
+                        labelStyle: TextStyle(
+                          color: _selectedUnit == entry.key
+                              ? accentColor
+                              : (isDark
+                                  ? AppColors.textDarkPrimary
+                                  : AppColors.textLightPrimary),
+                          fontWeight: _selectedUnit == entry.key
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                        checkmarkColor: accentColor,
+                        showCheckmark: false,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 14),
                 // ⭐ سعر الشراء (اختياري): يُحدَّث تلقائياً مع كل عملية شراء
                 TextFormField(
@@ -370,6 +433,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
+                    key: const Key('product_form_save'),
                     onPressed: _submit,
                     icon: Icon(
                       _isEditing ? Icons.save_rounded : Icons.add_rounded,

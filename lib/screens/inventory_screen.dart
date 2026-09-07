@@ -332,7 +332,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     Product? product,
     required ProductFormData data,
   }) async {
-    final quantity = data.quantity < 0 ? 0 : data.quantity;
+    final quantity = data.quantity < 0 ? 0.0 : data.quantity;
     final price = data.price < 0 ? 0.0 : data.price;
 
     try {

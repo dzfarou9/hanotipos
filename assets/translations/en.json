@@ -268,7 +268,11 @@
     "quantity_required": "Product quantity is required",
     "delete_local_server": "The product will be deleted from local inventory and the server.",
     "delete_server_failed": "Product deleted locally, but server deletion failed. Will retry later.",
-    "delete_offline": "No internet connection. Product deleted locally; deletion will sync later."
+    "delete_offline": "No internet connection. Product deleted locally; deletion will sync later.",
+    "unit_label": "Selling unit",
+    "unit_piece": "Piece",
+    "unit_kg": "Kilogram",
+    "unit_liter": "Liter"
   },
 
   "settings": {

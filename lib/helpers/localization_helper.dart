@@ -315,6 +315,10 @@ class LocalizationHelper {
   static String get inventoryLowStockAlert => 'inventory.low_stock_alert'.tr();
   static String get inventoryOutOfStockAlert =>
       'inventory.out_of_stock_alert'.tr();
+  static String get inventoryUnitLabel => 'inventory.unit_label'.tr();
+  static String get inventoryUnitPiece => 'inventory.unit_piece'.tr();
+  static String get inventoryUnitKg => 'inventory.unit_kg'.tr();
+  static String get inventoryUnitLiter => 'inventory.unit_liter'.tr();
 
   // ==================== دوال الإعدادات ====================
 
