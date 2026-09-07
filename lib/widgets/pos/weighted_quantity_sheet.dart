@@ -96,7 +96,15 @@ class _WeightedQuantitySheetState extends State<_WeightedQuantitySheet> {
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}')),
+              TextInputFormatter.withFunction(
+                (oldValue, newValue) {
+                  final t = newValue.text;
+                  final dotCount = '.'.allMatches(t).length;
+                  final ok = dotCount <= 1 &&
+                      RegExp(r'^\d*\.?\d{0,3}$').hasMatch(t);
+                  return ok ? newValue : oldValue;
+                },
+              ),
             ],
             decoration: InputDecoration(
               suffixText: unitLabel,

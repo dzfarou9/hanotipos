@@ -106,5 +106,8 @@ void main() {
       find.byKey(const Key('weighted_qty_field')),
     );
     expect(field.controller!.text, '0.5');
+
+    // الرقاقة لا تُغلق الورقة: النتيجة تبقى null حتى يؤكد المستخدم.
+    expect(result, isNull);
   });
 }
