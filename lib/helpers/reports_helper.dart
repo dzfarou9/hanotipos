@@ -270,6 +270,7 @@ Map<String, double> _buildChartData(
 
   switch (filter) {
     case ReportTimeFilter.week:
+    case ReportTimeFilter.month:
     case ReportTimeFilter.custom:
       // Daily breakdown.
       final days = end.difference(start).inDays.clamp(1, 365);
@@ -281,30 +282,6 @@ Map<String, double> _buildChartData(
       for (final sale in periodSales) {
         final key =
             '${sale.createdAt.day}/${sale.createdAt.month}';
-        final contribution = sale.isReturn
-            ? -sale.total
-            : sale.remainingTotal;
-        data[key] = (data[key] ?? 0.0) + contribution;
-      }
-      break;
-
-    case ReportTimeFilter.month:
-      // Weekly breakdown within the month.
-      final monthStart = start;
-      final monthEnd = end;
-      int weekIndex = 1;
-      DateTime weekStart = monthStart;
-      while (weekStart.isBefore(monthEnd)) {
-        final weekEnd = weekStart.add(const Duration(days: 6));
-        final key = 'W$weekIndex';
-        data[key] = 0.0;
-        weekStart = weekEnd.add(const Duration(days: 1));
-        weekIndex++;
-      }
-      for (final sale in periodSales) {
-        final dayOfMonth = sale.createdAt.day;
-        final weekNum = ((dayOfMonth - 1) ~/ 7) + 1;
-        final key = 'W$weekNum';
         final contribution = sale.isReturn
             ? -sale.total
             : sale.remainingTotal;

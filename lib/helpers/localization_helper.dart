@@ -702,20 +702,21 @@ class LocalizationHelper {
 
   // ==================== دوال التواريخ ====================
   static String dayName(int weekday) {
+    // Dart weekday: Monday=1 ... Sunday=7 — الترتيب يبدأ بالإثنين
     const names = [
-      'sunday',
       'monday',
       'tuesday',
       'wednesday',
       'thursday',
       'friday',
-      'saturday'
+      'saturday',
+      'sunday'
     ];
     return 'dates.${names[weekday - 1]}'.tr();
   }
 
   static String shortDayName(int weekday) {
-    const names = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     return 'dates.short_${names[weekday - 1]}'.tr();
   }
 

@@ -419,20 +419,25 @@ void main() {
       expect(data.chartData['Dec'], 0);
     });
 
-    test('month is bucketed per week of the month', () {
+    test('month is bucketed per day from the 1st to now', () {
       final data = _compute(
         ReportTimeFilter.month,
         sales: [
           _sale('s1', 100, createdAt: DateTime(2025, 6, 3)),
           _sale('s2', 250, createdAt: DateTime(2025, 6, 9)),
           _sale('s3', 60, createdAt: DateTime(2025, 6, 17)),
+          _sale('s4', 30, createdAt: DateTime(2025, 6, 17, 21)),
         ],
       );
 
-      // Days 1-7 → W1, 8-14 → W2, 15-21 → W3.
-      expect(data.chartData['W1'], 100);
-      expect(data.chartData['W2'], 250);
-      expect(data.chartData['W3'], 60);
+      // Days 1-18 (June 18th is "now"), zero-filled.
+      expect(data.chartData.length, 18);
+      expect(data.chartData.keys.first, '1/6');
+      expect(data.chartData.keys.last, '18/6');
+      expect(data.chartData['3/6'], 100);
+      expect(data.chartData['9/6'], 250);
+      expect(data.chartData['17/6'], 90);
+      expect(data.chartData['2/6'], 0);
     });
 
     test('returns push a bucket negative rather than being dropped', () {
