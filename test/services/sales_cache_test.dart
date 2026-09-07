@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:pos_app/models/sale_model.dart';
+import 'package:pos_app/models/hive_adapters/legacy_tolerant_adapters.dart';
 import 'package:pos_app/services/sales_cache.dart';
 
 Sale _makeSale(String id, DateTime createdAt) {

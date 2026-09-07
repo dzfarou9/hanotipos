@@ -93,8 +93,7 @@ class DatabaseService {
     Hive.registerAdapter(ProductAdapter());
     Hive.registerAdapter(SaleAdapter());
     Hive.registerAdapter(SaleItemAdapter());
-    Hive.registerAdapter(InventoryMovementAdapter());
-    // ⭐ adapters الenums لحركات المخزون (مكتوبة يدوياً — انظر الملف)
+    Hive.registerAdapter(InventoryMovementAdapter());    // ⭐ adapters الenums لحركات المخزون (مكتوبة يدوياً — انظر الملف)
     Hive.registerAdapter(MovementTypeAdapter());
     Hive.registerAdapter(MovementStatusAdapter());
     Hive.registerAdapter(SupplierAdapter());
@@ -1012,9 +1011,9 @@ class DatabaseService {
     final newReturnTotal = (sale.returnTotal ?? 0.0) + returnTotal;
 
     final totalOriginalQuantity =
-        sale.items.fold(0, (sum, item) => sum + item.quantity);
+        sale.items.fold(0.0, (sum, item) => sum + item.quantity);
     final totalReturnedQuantity =
-        mergedReturned.values.fold(0, (sum, item) => sum + item.quantity);
+        mergedReturned.values.fold(0.0, (sum, item) => sum + item.quantity);
     final fullyReturned = totalReturnedQuantity >= totalOriginalQuantity;
 
     final updatedSale = Sale(

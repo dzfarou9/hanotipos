@@ -3,26 +3,19 @@
 import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-part 'sale_model.g.dart';
+import '../helpers/quantity_format.dart';
 
-@HiveType(typeId: 2)
 class SaleItem {
-  @HiveField(0)
   final String id;
 
-  @HiveField(1)
   final String productId;
 
-  @HiveField(2)
   final String productName;
 
-  @HiveField(3)
   final double price;
 
-  @HiveField(4)
-  final int quantity;
+  final double quantity;
 
-  @HiveField(5)
   final double subtotal;
 
   SaleItem({
@@ -40,7 +33,7 @@ class SaleItem {
       productId: json['product_id'] ?? '',
       productName: json['product_name'] ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      quantity: json['quantity'] ?? 0,
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -57,67 +50,48 @@ class SaleItem {
   }
 }
 
-@HiveType(typeId: 3)
 class Sale extends HiveObject {
-  @HiveField(0)
   final String id;
 
-  @HiveField(1)
   final List<SaleItem> items;
 
-  @HiveField(2)
   final double subtotal;
 
-  @HiveField(3)
   final double discount;
 
-  @HiveField(4)
   final double tax;
 
-  @HiveField(5)
   final double total;
 
-  @HiveField(6)
   final String paymentMethod;
 
-  @HiveField(7)
   final DateTime createdAt;
 
-  @HiveField(8)
   bool isSynced;
 
-  @HiveField(9)
   final String userId;
 
-  @HiveField(10)
   final String? customerName;
 
-  @HiveField(11)
   final String? customerPhone;
 
   // ⭐ حقل جديد: نوع العملية (بيع عادي أو مرتجع)
-  @HiveField(12)
   final String saleType; // 'sale', 'return'
 
   // ⭐ حقل جديد: مرجع للمبيعة الأصلية في حالة المرتجع
-  @HiveField(13)
   final String? originalSaleId;
 
   // ⭐⭐⭐ حقول جديدة للمرتجعات (بدلاً من إنشاء Sale جديدة)
   // ⭐ المنتجات المرتجعة من هذه المبيعة
-  @HiveField(14)
   final List<SaleItem>? returnedItems;
 
   // ⭐ إجمالي قيمة المرتجعات
-  @HiveField(15)
   final double? returnTotal;
 
   // ⭐ هل تم إرجاع كل المنتجات؟
-  @HiveField(16)
   final bool isFullyReturned;
 
   /// معرّف العميل — يُملأ في مبيعات الدين وعند ربط العميل اختيارياً.
-  @HiveField(17)
   final String? customerId;
 
   Sale({
@@ -234,13 +208,13 @@ class Sale extends HiveObject {
   bool get canReturn {
     if (isReturn) return false;
     if (isFullyReturned) return false;
-    if (returnedItems == null) return true;
-    // تحقق إذا كانت جميع المنتجات قد تم إرجاعها
-    final totalOriginalQuantity =
-        items.fold(0, (sum, item) => sum + item.quantity);
-    final totalReturnedQuantity =
-        returnedItems!.fold(0, (sum, item) => sum + item.quantity);
-    return totalReturnedQuantity < totalOriginalQuantity;
+    if (returnedItems == null || returnedItems!.isEmpty) return true;
+    final totalOriginal =
+        items.fold(0.0, (sum, item) => sum + item.quantity);
+    final totalReturned =
+        returnedItems!.fold(0.0, (sum, item) => sum + item.quantity);
+    return !QuantityFormat.exceedsQty(totalReturned, totalOriginal) &&
+        !QuantityFormat.isZeroQty(totalOriginal - totalReturned);
   }
 
   // ⭐ الحصول على المنتجات التي لم يتم إرجاعها بعد
@@ -249,23 +223,24 @@ class Sale extends HiveObject {
       return items;
     }
 
-    final Map<String, int> returnedQuantities = {};
+    final Map<String, double> returnedQuantities = {};
     for (var item in returnedItems!) {
       returnedQuantities[item.productId] =
-          (returnedQuantities[item.productId] ?? 0) + item.quantity;
+          (returnedQuantities[item.productId] ?? 0.0) + item.quantity;
     }
 
     final List<SaleItem> available = [];
     for (var item in items) {
-      final returnedQty = returnedQuantities[item.productId] ?? 0;
-      if (item.quantity > returnedQty) {
+      final returnedQty = returnedQuantities[item.productId] ?? 0.0;
+      if (QuantityFormat.greaterThanQty(item.quantity, returnedQty)) {
+        final remainder = item.quantity - returnedQty;
         available.add(SaleItem(
           id: item.id,
           productId: item.productId,
           productName: item.productName,
           price: item.price,
-          quantity: item.quantity - returnedQty,
-          subtotal: item.price * (item.quantity - returnedQty),
+          quantity: remainder,
+          subtotal: item.price * remainder,
         ));
       }
     }
