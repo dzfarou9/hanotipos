@@ -16,7 +16,7 @@ Product _product(String id, String name, double price) => Product(
       userId: 'user1',
     );
 
-CartService _cartWith({double price = 250, int quantity = 2}) {
+CartService _cartWith({double price = 250, double quantity = 2}) {
   final cart = CartService();
   cart.addProduct(_product('1', 'Milk', price), quantity: quantity);
   return cart;
@@ -88,7 +88,7 @@ void main() {
     expect(find.text('Edahabia / CIB'), findsOneWidget);
     expect(find.text('Debt / Credit'), findsOneWidget);
     expect(find.text('500.00 DZD'), findsOneWidget);
-    expect(find.text('2 items'), findsOneWidget);
+    expect(find.text('2.0 items'), findsOneWidget);
   });
 
   testWidgets('tapping cash closes the sheet and fires onCash only',

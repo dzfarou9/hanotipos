@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../models/product_model.dart';
 import '../models/cart_item_model.dart';
 
@@ -25,7 +26,7 @@ class CartService extends ChangeNotifier {
   List<HeldOrder> get heldOrders => List.unmodifiable(_heldOrders);
   bool get hasHeldOrders => _heldOrders.isNotEmpty;
 
-  int get totalItems => _items.fold(0, (sum, item) => sum + item.quantity);
+  double get totalItems => _items.fold(0.0, (sum, item) => sum + item.quantity);
 
   double get subtotal => _items.fold(0, (sum, item) => sum + item.subtotal);
 
@@ -63,13 +64,14 @@ class CartService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addProduct(Product product, {int quantity = 1}) {
+  void addProduct(Product product, {double quantity = 1.0}) {
     final existingIndex = _items.indexWhere(
       (item) => item.product.id == product.id,
     );
 
     if (existingIndex != -1) {
-      _items[existingIndex].quantity += quantity;
+      _items[existingIndex].quantity =
+          QuantityFormat.round(_items[existingIndex].quantity + quantity);
     } else {
       _items.add(CartItem(product: product, quantity: quantity));
     }
@@ -84,18 +86,18 @@ class CartService extends ChangeNotifier {
       if (existingIndex != -1) {
         _items[existingIndex].quantity += 1;
       } else {
-        _items.add(CartItem(product: product, quantity: 1));
+        _items.add(CartItem(product: product, quantity: 1.0));
       }
     }
     notifyListeners();
   }
 
-  void updateQuantity(int index, int quantity) {
+  void updateQuantity(int index, double quantity) {
     if (index >= 0 && index < _items.length) {
       if (quantity <= 0) {
         _items.removeAt(index);
       } else {
-        _items[index].quantity = quantity;
+        _items[index].quantity = QuantityFormat.round(quantity);
       }
       notifyListeners();
     }
@@ -103,17 +105,18 @@ class CartService extends ChangeNotifier {
 
   void incrementQuantity(int index) {
     if (index >= 0 && index < _items.length) {
-      _items[index].quantity += 1;
+      _items[index].quantity += 1.0;
       notifyListeners();
     }
   }
 
   void decrementQuantity(int index) {
     if (index >= 0 && index < _items.length) {
-      if (_items[index].quantity > 1) {
-        _items[index].quantity -= 1;
-      } else {
+      final next = _items[index].quantity - 1;
+      if (QuantityFormat.isZeroQty(next) || next < 0) {
         _items.removeAt(index);
+      } else {
+        _items[index].quantity = QuantityFormat.round(next);
       }
       notifyListeners();
     }
@@ -228,5 +231,5 @@ class HeldOrder {
     return t < 0 ? 0 : t;
   }
 
-  int get totalItems => items.fold(0, (sum, item) => sum + item.quantity);
+  double get totalItems => items.fold(0.0, (sum, item) => sum + item.quantity);
 }

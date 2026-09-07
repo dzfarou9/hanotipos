@@ -2,11 +2,11 @@ import 'product_model.dart';
 
 class CartItem {
   final Product product;
-  int quantity;
+  double quantity;
   double get subtotal => product.price * quantity;
 
   CartItem({
     required this.product,
-    this.quantity = 1,
+    this.quantity = 1.0,
   });
 }
