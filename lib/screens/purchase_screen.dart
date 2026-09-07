@@ -1,8 +1,10 @@
 // lib/screens/purchase_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:uuid/uuid.dart';
+import '../helpers/quantity_format.dart';
 import '../models/purchase_model.dart';
 import '../models/supplier_model.dart';
 import '../models/product_model.dart';
@@ -67,7 +69,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   }
 
   double get _total => _cartLines.fold<double>(
-      0, (sum, line) => sum + line.cost * line.quantity);
+      0.0, (sum, line) => sum + line.cost * line.quantity);
 
   bool get _canSave =>
       _selectedSupplier != null && _cartLines.isNotEmpty && !_saving;
@@ -105,8 +107,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     if (existing.isNotEmpty) {
       final line = existing.first;
       setState(() {
-        line.quantity = line.quantity + 1;
-        line.quantityController.text = '${line.quantity}';
+        line.quantity = line.quantity + 1.0;
+        line.quantityController.text = QuantityFormat.quantity(line.quantity);
       });
     } else {
       setState(() {
@@ -124,12 +126,12 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   }
 
   void _updateLine(_CartLine line) {
-    final qty = int.tryParse(line.quantityController.text) ?? line.quantity;
+    final qty = double.tryParse(line.quantityController.text) ?? line.quantity;
     final cost =
         double.tryParse(line.costController.text.replaceAll(',', '.')) ??
             line.cost;
     line
-      ..quantity = qty < 0 ? 0 : qty
+      ..quantity = qty < 0 ? 0.0 : qty
       ..cost = cost < 0 ? 0 : cost;
     setState(() {});
   }
@@ -159,8 +161,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         if (pendingLine.isNotEmpty) {
           final line = pendingLine.first;
           setState(() {
-            line.quantity = line.quantity + 1;
-            line.quantityController.text = '${line.quantity}';
+            line.quantity = line.quantity + 1.0;
+            line.quantityController.text = QuantityFormat.quantity(line.quantity);
           });
           if (_scanning) setState(() => _scanning = false);
           _showSnack(
@@ -265,7 +267,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           name: pending.name,
           category: 'General',
           price: pending.price,
-          quantity: 0,
+          quantity: 0.0,
           barcode: pending.barcode,
           minStockLevel: 10,
           costPrice: line.cost > 0 ? line.cost : null,
@@ -610,7 +612,18 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   child: TextFormField(
                     controller: line.quantityController,
                     keyboardType:
-                        const TextInputType.numberWithOptions(decimal: false),
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      TextInputFormatter.withFunction(
+                        (oldValue, newValue) {
+                          final t = newValue.text;
+                          final dotCount = '.'.allMatches(t).length;
+                          final ok = dotCount <= 1 &&
+                              RegExp(r'^\d*\.?\d{0,3}$').hasMatch(t);
+                          return ok ? newValue : oldValue;
+                        },
+                      ),
+                    ],
                     textAlign: TextAlign.center,
                     onChanged: (_) => _updateLine(line),
                     decoration: InputDecoration(
@@ -703,7 +716,7 @@ class _CartLine {
         quantityController = TextEditingController(text: '1'),
         costController = TextEditingController(
             text: product.hasCost ? product.costPrice!.toString() : '') {
-    quantity = 1;
+    quantity = 1.0;
     cost = product.costPrice ?? 0.0;
   }
 
@@ -714,7 +727,7 @@ class _CartLine {
         productName = pending.name,
         quantityController = TextEditingController(text: '1'),
         costController = TextEditingController() {
-    quantity = 1;
+    quantity = 1.0;
     cost = 0.0;
   }
 
@@ -728,7 +741,7 @@ class _CartLine {
   final TextEditingController quantityController;
   final TextEditingController costController;
 
-  int quantity = 1;
+  double quantity = 1.0;
   double cost = 0.0;
 
   void dispose() {
