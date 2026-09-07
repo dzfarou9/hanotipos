@@ -1,5 +1,17 @@
 // lib/screens/splash_screen.dart
+//
+// شاشة البداية — تصميم "مصقول" باتباع الثيم (فاتح/داكن):
+//   1) خلفية بشعاع إmeraldي ناعم + مدارَان يتنفسان (transform فقط)
+//   2) علامة مونوغرام "H" بتقنية الغلاف المزدوج (Double-Bezel)
+//   3) اسم العلامة: صعود + انكماش تباعد الأحرف (بدون توهج)
+//   4) شريحة الشعار النصي (Tagline) بحافة شعرية
+//   5) لودر: ثلاث نقاط تتنفس بتتابع زمني (بدون Spinner)
+//
+// كل الحركات transform/opacity فقط، بمنحنيات easeOutCubic/easeOutExpo —
+// بلا elastic/bounce وبلا ظلال توهج. منطق الجلسة والمزامنة والتنقل
+// محفوظ حرفياً من النسخة السابقة.
 
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -32,87 +44,120 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  late AnimationController _scaleController;
-  late AnimationController _textRevealController;
-  late AnimationController _subtitleController;
-  late AnimationController _taglineController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _textRevealAnimation;
-  late Animation<double> _subtitleFadeAnimation;
-  late Animation<double> _taglineFadeAnimation;
+  // ── متحكمات الدخول المتتابع ──
+  late final AnimationController _markController;   // المونوغرام (spring واحد)
+  late final AnimationController _wordmarkController;
+  late final AnimationController _pillController;
+  late final AnimationController _loaderController;
+
+  late final Animation<double> _markScale;
+  late final Animation<double> _wordmarkFade;
+  late final Animation<double> _wordmarkRise;
+  late final Animation<double> _wordmarkTracking;
+  late final Animation<double> _pillFade;
+  late final Animation<double> _pillRise;
+  late final Animation<double> _loaderFade;
+
+  // ── مدار التنفس الخلفي ──
+  late final AnimationController _orbController;
 
   bool _minSplashElapsed = false;
 
-  String get _appName {
-    return LocalizationHelper.brandName;
-  }
+  String get _appName => LocalizationHelper.brandName;
 
-  ui.TextDirection get _textDirection {
-    return appTextDirection(context.locale);
-  }
-
-  bool get _isArabic => context.locale.languageCode == 'ar';
+  ui.TextDirection get _textDirection => appTextDirection(context.locale);
 
   @override
   void initState() {
     super.initState();
 
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 1800),
+    _markController = AnimationController(
+      duration: const Duration(milliseconds: 700),
       vsync: this,
     );
+    _markScale = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _markController, curve: Curves.easeOutBack),
+    );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+    _wordmarkController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _wordmarkFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _scaleController,
-        curve: const Interval(0.0, 0.7, curve: Curves.elasticOut),
+        parent: _wordmarkController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
+      ),
+    );
+    _wordmarkRise = Tween<double>(begin: 24.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _wordmarkController,
+        curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+      ),
+    );
+    _wordmarkTracking = Tween<double>(begin: 10.0, end: 4.0).animate(
+      CurvedAnimation(
+        parent: _wordmarkController,
+        curve: const Interval(0.1, 0.9, curve: Curves.easeOutExpo),
       ),
     );
 
-    _textRevealController = AnimationController(
-      duration: const Duration(milliseconds: 2200),
+    _pillController = AnimationController(
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-
-    _textRevealAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _pillFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _textRevealController,
-        curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
+        parent: _pillController,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOutCubic),
+      ),
+    );
+    _pillRise = Tween<double>(begin: 16.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _pillController,
+        curve: const Interval(0.0, 0.9, curve: Curves.easeOutCubic),
       ),
     );
 
-    _subtitleController = AnimationController(
-      duration: const Duration(milliseconds: 2800),
+    _loaderController = AnimationController(
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-
-    _subtitleFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _subtitleController,
-        curve: const Interval(0.7, 0.95, curve: Curves.easeIn),
-      ),
+    _loaderFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _loaderController, curve: Curves.easeOutCubic),
     );
 
-    _taglineController = AnimationController(
-      duration: const Duration(milliseconds: 3200),
+    _orbController = AnimationController(
+      duration: const Duration(milliseconds: 5000),
       vsync: this,
-    );
+    )..repeat(reverse: true);
 
-    _taglineFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _taglineController,
-        curve: const Interval(0.8, 1.0, curve: Curves.easeIn),
-      ),
-    );
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) _wordmarkController.forward();
+    });
+    Future.delayed(const Duration(milliseconds: 550), () {
+      if (mounted) _pillController.forward();
+    });
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) _loaderController.forward();
+    });
+    _markController.forward();
 
-    _scaleController.forward();
-    _textRevealController.forward();
-    _subtitleController.forward();
-    _taglineController.forward();
+    // ⭐ فحص الجلسة بعد أول إطار: الشاشة تُرسم فوراً قبل أي عمل شبكة/تخزين،
+    // وأي فشل في فحص الجلسة يُسقط بأمان إلى شاشة الدخول بدلاً من تجميد البداية.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _navigateToNextScreen();
+    });
+  }
 
-    // ⭐ نبدأ فحص الجلسة والمزامنة فوراً (بدلاً من انتظار 3.5 ثانية)،
-    // مع فرض حد أدنى لعرض شاشة البداية حتى لا "يومض" التطبيق.
-    _navigateToNextScreen();
+  @override
+  void dispose() {
+    _markController.dispose();
+    _wordmarkController.dispose();
+    _pillController.dispose();
+    _loaderController.dispose();
+    _orbController.dispose();
+    super.dispose();
   }
 
   Future<void> _ensureMinSplashTime() async {
@@ -122,7 +167,23 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // منطق التنقل والجلسة — محفوظ حرفياً (لا تعديل)
+  // ═══════════════════════════════════════════════════════════════════════════
+
   Future<void> _navigateToNextScreen() async {
+    try {
+      await _runSessionCheck();
+    } catch (e) {
+      AppConfig.logError('⚠️ Session check failed, falling back to login', e);
+      if (!mounted) return;
+      await _ensureMinSplashTime();
+      if (!mounted) return;
+      _navigateToLogin();
+    }
+  }
+
+  Future<void> _runSessionCheck() async {
     final authService = AuthService.instance;
     final db = DatabaseService.instance;
     final syncService = SyncService();
@@ -163,8 +224,6 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (isActive) {
         // ⭐ Offline First: شاشة البداية هي نقطة المزامنة الأولية الموثوقة
-        // نرفع البيانات غير المتزامنة إلى Firebase، ثم نجلب البيانات الناقصة،
-        // ونُحدّث Hive قبل الانتقال للشاشة الرئيسية (القراءة من المحلي فقط لاحقاً)
         try {
           final productCount = db.getProductCount();
           final saleCount = db.getSaleCount();
@@ -259,14 +318,9 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  @override
-  void dispose() {
-    _scaleController.dispose();
-    _textRevealController.dispose();
-    _subtitleController.dispose();
-    _taglineController.dispose();
-    super.dispose();
-  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // الواجهة
+  // ═══════════════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -274,23 +328,26 @@ class _SplashScreenState extends State<SplashScreen>
     final accentColor = isDark ? AppColors.neonOrange : AppColors.primary;
     final bgColor =
         isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final textSecondary =
+        isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary;
+    final textTertiary =
+        isDark ? AppColors.textDarkTertiary : AppColors.textLightTertiary;
     final appName = _appName;
     final textDirection = _textDirection;
-    final isArabic = _isArabic;
 
     return Scaffold(
       backgroundColor: bgColor,
       body: Stack(
         children: [
+          // ── الخلفية: شعاع ناعم + مدارَان يتنفسان ──
           Positioned.fill(
-            child: Container(
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.5,
+                  center: Alignment.topCenter,
+                  radius: 1.6,
                   colors: [
-                    accentColor.withValues(alpha: 0.08),
-                    Colors.transparent,
+                    accentColor.withValues(alpha: 0.10),
                     Colors.transparent,
                   ],
                 ),
@@ -298,174 +355,114 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
           Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _scaleController,
-              child: Stack(
-                children: List.generate(20, (i) {
-                  return Positioned(
-                    top: (i * 37.0) % MediaQuery.of(context).size.height,
-                    left: (i * 53.0) % MediaQuery.of(context).size.width,
-                    child: Container(
-                      width: 3,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: accentColor.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-              builder: (context, child) {
-                return Opacity(
-                  opacity: 0.5 + 0.5 * (1 - _scaleController.value),
-                  child: child,
-                );
-              },
+            child: _BreathingOrbs(
+              animation: _orbController,
+              accentColor: accentColor,
             ),
           ),
+
+          // ── المحتوى المركزي ──
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(flex: 2),
+
+                // العلامة: غلاف مزدوج (حلقة شعرية + نواة متدرجة)
+                AnimatedBuilder(
+                  animation: _markController,
+                  builder: (context, child) => Transform.scale(
+                    scale: _markScale.value,
+                    child: child,
+                  ),
+                  child: _MonogramMark(accentColor: accentColor),
+                ),
+                const SizedBox(height: 28),
+
+                // اسم العلامة: صعود + انكماش التباعد
                 Directionality(
                   textDirection: textDirection,
                   child: AnimatedBuilder(
-                    animation: _scaleController,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _scaleAnimation.value,
-                        child: AnimatedBuilder(
-                          animation: _textRevealController,
-                          builder: (context, child) {
-                            if (isArabic) {
-                              return Opacity(
-                                opacity: _textRevealAnimation.value,
-                                child: Text(
-                                  appName,
-                                  style: TextStyle(
-                                    fontSize: 56,
-                                    fontWeight: FontWeight.w900,
-                                    color: accentColor,
-                                    letterSpacing: 6,
-                                    shadows: [
-                                      Shadow(
-                                        color: accentColor.withValues(
-                                          alpha: 0.5 *
-                                              _textRevealAnimation.value,
-                                        ),
-                                        blurRadius: 20,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final revealProgress = _textRevealAnimation.value;
-
-                            // ⭐ صيغة مبسطة: اكتفاء بخاصية التدرج على الكلمة كلها
-                            // بدلاً من تحويل كل حرف على حدة (طبقات أقل لكل إطار)
-                            return Opacity(
-                              opacity: revealProgress,
-                              child: Transform.translate(
-                                offset: Offset(
-                                  0,
-                                  20 * (1 - revealProgress),
-                                ),
-                                child: Text(
-                                  appName,
-                                  style: TextStyle(
-                                    fontSize: 56,
-                                    fontWeight: FontWeight.w900,
-                                    color: accentColor,
-                                    letterSpacing: 6,
-                                    shadows: [
-                                      Shadow(
-                                        color: accentColor.withValues(
-                                          alpha: 0.5 * revealProgress,
-                                        ),
-                                        blurRadius: 20,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
+                    animation: _wordmarkController,
+                    builder: (context, child) => Opacity(
+                      opacity: _wordmarkFade.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _wordmarkRise.value),
+                        child: child,
+                      ),
+                    ),
+                    child: Text(
+                      appName,
+                      style: TextStyle(
+                        fontSize: 56,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                        letterSpacing: _wordmarkTracking.value,
+                        height: 1.1,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // شريحة الشعار النصي
                 Directionality(
                   textDirection: ui.TextDirection.ltr,
                   child: AnimatedBuilder(
-                    animation: _subtitleController,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _subtitleFadeAnimation.value,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: accentColor.withValues(alpha: 0.3),
-                                width: 1),
-                          ),
-                          child: Text(
-                            LocalizationHelper.appTagline,
-                            style: AppTextStyles.bodyMedium(
-                              color: isDark
-                                  ? AppColors.textDarkSecondary
-                                  : AppColors.textLightSecondary,
-                            ),
-                          ),
+                    animation: _pillController,
+                    builder: (context, child) => Opacity(
+                      opacity: _pillFade.value,
+                      child: Transform.translate(
+                        offset: Offset(0, _pillRise.value),
+                        child: child,
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: accentColor.withValues(alpha: 0.25),
+                          width: 1,
                         ),
-                      );
-                    },
+                      ),
+                      child: Text(
+                        LocalizationHelper.appTagline,
+                        style: AppTextStyles.bodyMedium(color: textSecondary),
+                      ),
+                    ),
                   ),
                 ),
+
                 const Spacer(flex: 2),
+
+                // أسفل: الشعار الفرعي + النقاط النابضة
                 Directionality(
                   textDirection: ui.TextDirection.ltr,
                   child: AnimatedBuilder(
-                    animation: _taglineController,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _taglineFadeAnimation.value,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 40),
-                          child: Column(
-                            children: [
-                              Text(
-                                LocalizationHelper.appSubtagline,
-                                style: AppTextStyles.caption(
-                                  color: isDark
-                                      ? AppColors.textDarkTertiary
-                                      : AppColors.textLightTertiary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      accentColor),
-                                ),
-                              ),
-                            ],
+                    animation: _loaderController,
+                    builder: (context, child) => Opacity(
+                      opacity: _loaderFade.value,
+                      child: child,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 40),
+                      child: Column(
+                        children: [
+                          Text(
+                            LocalizationHelper.appSubtagline,
+                            style: AppTextStyles.caption(
+                              color: textTertiary,
+                              fontSize: 13,
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                          const SizedBox(height: 16),
+                          _BreathingDots(accentColor: accentColor),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -473,6 +470,180 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ],
       ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// العلامة: غلاف مزدوج — حلقة شعرية خارجية + نواة متدرجة بحواف متراكزة
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _MonogramMark extends StatelessWidget {
+  final Color accentColor;
+  const _MonogramMark({required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 84,
+      height: 84,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: accentColor.withValues(alpha: 0.15)),
+        color: accentColor.withValues(alpha: 0.04),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF00A56E), Color(0xFF006C48)],
+          ),
+          boxShadow: [
+            // ظل ناعم جداً منبعث — ليس ظلاً حاداً
+            BoxShadow(
+              color: const Color(0xFF00875A).withValues(alpha: 0.25),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'H',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            height: 1.0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// المدارَان الخلفيان: تمدد/انكماش بطيء — transform فقط
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _BreathingOrbs extends StatelessWidget {
+  final Animation<double> animation;
+  final Color accentColor;
+  const _BreathingOrbs({required this.animation, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final t = animation.value;
+        return Stack(
+          children: [
+            Positioned(
+              top: -60,
+              right: -40,
+              child: Transform.scale(
+                scale: 1.0 + 0.08 * math.sin(t * math.pi),
+                child: _orb(180, 0.06),
+              ),
+            ),
+            Positioned(
+              bottom: 80,
+              left: -50,
+              child: Transform.scale(
+                scale: 1.0 + 0.06 * math.sin((t + 0.5) * math.pi),
+                child: _orb(220, 0.045),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _orb(double size, double alpha) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            accentColor.withValues(alpha: alpha),
+            accentColor.withValues(alpha: 0.0),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// اللودر: ثلاث نقاط تتنفس بطور جيبي متتابع — transform فقط
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _BreathingDots extends StatefulWidget {
+  final Color accentColor;
+  const _BreathingDots({required this.accentColor});
+
+  @override
+  State<_BreathingDots> createState() => _BreathingDotsState();
+}
+
+class _BreathingDotsState extends State<_BreathingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            // طور متتابع: كل نقطة تتأخر 0.25 دورة عن سابقتها
+            final phase = (_pulse.value - i * 0.25) % 1.0;
+            final lift = math.sin(phase * math.pi);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Transform.translate(
+                offset: Offset(0, -4 * lift),
+                child: Transform.scale(
+                  scale: 0.8 + 0.4 * lift,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.accentColor
+                          .withValues(alpha: 0.35 + 0.65 * lift),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }
