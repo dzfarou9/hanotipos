@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
 import '../models/product_model.dart';
+import '../models/hive_adapters/legacy_tolerant_adapters.dart';
 import '../models/sale_model.dart';
 import '../models/inventory_movement_model.dart';
 import '../models/inventory_movement_enum_adapters.dart';

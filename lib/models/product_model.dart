@@ -1,53 +1,40 @@
 // lib/models/product_model.dart
 
-import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-part 'product_model.g.dart';
-
-@HiveType(typeId: 0)
-class Product extends HiveObject {
-  @HiveField(0)
+class Product {
   final String id;
 
-  @HiveField(1)
   String name;
 
-  @HiveField(2)
   String category;
 
-  @HiveField(3)
   double price;
 
-  @HiveField(4)
-  int quantity;
+  /// الكمية: عدد القطع أو الوزن/الحجم (كغ/لتر) حسب الوحدة.
+  double quantity;
 
-  @HiveField(5)
   String? description;
 
-  @HiveField(6)
   DateTime createdAt;
 
-  @HiveField(7)
   DateTime updatedAt;
 
-  @HiveField(8)
   String? barcode;
 
-  @HiveField(9)
   bool isSynced;
 
-  @HiveField(10)
   String userId;
 
-  @HiveField(11)
   int minStockLevel;
 
   /// ⭐ سعر الشراء (التكلفة). null يعني «غير محدد».
   /// نُبقيه nullable حتى تقرأ السجلات القديمة (بلا الحقل 12) بأمان،
   /// ويُحدَّث تلقائياً إلى تكلفة آخر عملية شراء لهذا المنتج.
-  @HiveField(12)
   double? costPrice;
+
+  /// ⭐ وحدة البيع: 'piece' | 'kg' | 'litre'
+  String unit;
 
   Product({
     required this.id,
@@ -63,6 +50,7 @@ class Product extends HiveObject {
     required this.userId,
     this.minStockLevel = 10,
     this.costPrice,
+    this.unit = 'piece',
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
@@ -72,10 +60,16 @@ class Product extends HiveObject {
   /// هل للمنتج تكلفة شراء محددة؟
   bool get hasCost => (costPrice ?? 0) > 0;
 
+  /// منتج يُباع بالوزن/الحجم وليس بالقطعة؟
+  bool get isWeighted => unit != 'piece';
+
   // ⭐ من Firestore إلى Product - مع إصلاح تحويل Timestamp
   factory Product.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return Product.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+  }
 
+  /// يبني Product من Map مستخرجة من Firestore (اختبارها أسهل من DocumentSnapshot).
+  factory Product.fromMap(String id, Map<String, dynamic> data) {
     // ⭐ دالة مساعدة لتحويل Timestamp إلى DateTime
     DateTime? parseTimestamp(dynamic value) {
       if (value == null) return null;
@@ -99,11 +93,11 @@ class Product extends HiveObject {
     final updatedAtValue = data['updated_at'];
 
     return Product(
-      id: doc.id,
+      id: id,
       name: data['name'] as String? ?? '',
       category: data['category'] as String? ?? 'General',
       price: (data['price'] as num?)?.toDouble() ?? 0.0,
-      quantity: data['quantity'] as int? ?? 0,
+      quantity: (data['quantity'] as num?)?.toDouble() ?? 0.0,
       description: data['description'] as String?,
       barcode: data['barcode'] as String?,
       createdAt: parseTimestamp(createdAtValue) ?? DateTime.now(),
@@ -112,6 +106,7 @@ class Product extends HiveObject {
       userId: data['user_id'] as String? ?? '',
       minStockLevel: (data['min_stock_level'] as num?)?.toInt() ?? 10,
       costPrice: (data['cost_price'] as num?)?.toDouble(),
+      unit: data['unit'] as String? ?? 'piece',
     );
   }
 
@@ -121,7 +116,7 @@ class Product extends HiveObject {
       name: json['name'] as String,
       category: json['category'] as String,
       price: (json['price'] as num).toDouble(),
-      quantity: json['quantity'] as int,
+      quantity: (json['quantity'] as num).toDouble(),
       description: json['description'] as String?,
       barcode: json['barcode'] as String?,
       createdAt: json['created_at'] != null
@@ -134,6 +129,7 @@ class Product extends HiveObject {
       userId: json['user_id'] as String,
       minStockLevel: (json['min_stock_level'] as num?)?.toInt() ?? 10,
       costPrice: (json['cost_price'] as num?)?.toDouble(),
+      unit: json['unit'] as String? ?? 'piece',
     );
   }
 
@@ -149,6 +145,7 @@ class Product extends HiveObject {
       'user_id': userId,
       'min_stock_level': minStockLevel,
       'cost_price': costPrice,
+      'unit': unit,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
