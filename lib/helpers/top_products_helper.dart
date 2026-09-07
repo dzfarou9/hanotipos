@@ -6,7 +6,7 @@ class TopProduct {
   final Product product;
 
   /// كمية المبيعات الصافية (بعد خصم المرتجعات) في الشهر الحالي.
-  final int quantity;
+  final double quantity;
 
   /// إجمالي قيمة مبيعات المنتج في الشهر الحالي.
   final double totalSales;
@@ -33,7 +33,7 @@ List<TopProduct> calculateTopProducts(
   final productById = {
     for (var product in allProducts) product.id: product,
   };
-  final Map<String, int> productQuantity = {};
+  final Map<String, double> productQuantity = {};
   final Map<String, double> productAmount = {};
 
   final now = DateTime.now();
@@ -45,25 +45,25 @@ List<TopProduct> calculateTopProducts(
     }
 
     // ⭐ تجميع مسبق للمرتجعات لهذه الفاتورة (كمية ومبلغ لكل منتج)
-    final returnedQty = <String, int>{};
+    final returnedQty = <String, double>{};
     final returnedAmount = <String, double>{};
     if (sale.returnedItems != null) {
       for (var returned in sale.returnedItems!) {
         returnedQty[returned.productId] =
-            (returnedQty[returned.productId] ?? 0) + returned.quantity;
+            (returnedQty[returned.productId] ?? 0.0) + returned.quantity;
         returnedAmount[returned.productId] =
-            (returnedAmount[returned.productId] ?? 0) + returned.subtotal;
+            (returnedAmount[returned.productId] ?? 0.0) + returned.subtotal;
       }
     }
 
     for (var item in sale.items) {
-      final netQty = item.quantity - (returnedQty[item.productId] ?? 0);
+      final netQty = item.quantity - (returnedQty[item.productId] ?? 0.0);
       if (netQty <= 0) continue;
-      final netAmount = item.subtotal - (returnedAmount[item.productId] ?? 0);
+      final netAmount = item.subtotal - (returnedAmount[item.productId] ?? 0.0);
       productQuantity[item.productId] =
-          (productQuantity[item.productId] ?? 0) + netQty;
+          (productQuantity[item.productId] ?? 0.0) + netQty;
       productAmount[item.productId] =
-          (productAmount[item.productId] ?? 0) + netAmount;
+          (productAmount[item.productId] ?? 0.0) + netAmount;
     }
   }
 

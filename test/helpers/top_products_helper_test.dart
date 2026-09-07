@@ -12,7 +12,7 @@ Product _product(String id, {double price = 100}) => Product(
       userId: 'user1',
     );
 
-SaleItem _item(String id, String productId, double price, int qty) => SaleItem(
+SaleItem _item(String id, String productId, double price, double qty) => SaleItem(
       id: id,
       productId: productId,
       productName: 'Product $productId',
@@ -67,7 +67,7 @@ void main() {
 
       expect(result.length, 3);
       expect(result[0].product.id, 'milk');
-      expect(result[0].quantity, 5);
+      expect(result[0].quantity, 5.0);
       expect(result[0].totalSales, 500.0);
       expect(result[1].product.id, 'bread');
       expect(result[2].product.id, 'eggs');
@@ -119,7 +119,7 @@ void main() {
       );
 
       expect(result.length, 1);
-      expect(result[0].quantity, 3);
+      expect(result[0].quantity, 3.0);
       expect(result[0].totalSales, 300.0);
     });
 

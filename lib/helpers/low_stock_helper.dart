@@ -1,4 +1,5 @@
 import '../models/product_model.dart';
+import 'quantity_format.dart';
 
 /// نتيجة تصنيف المنتجات حسب حالة المخزون.
 class LowStockResult {
@@ -25,7 +26,7 @@ LowStockResult classifyLowStockProducts(List<Product> products) {
   final outOfStock = <Product>[];
 
   for (final product in products) {
-    if (product.quantity == 0) {
+    if (QuantityFormat.isZeroQty(product.quantity)) {
       outOfStock.add(product);
     } else if (product.quantity <= product.minStockLevel) {
       lowStock.add(product);

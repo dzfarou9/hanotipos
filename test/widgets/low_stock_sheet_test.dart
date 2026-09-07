@@ -7,7 +7,7 @@ import 'package:pos_app/models/product_model.dart';
 import 'package:pos_app/widgets/empty_state.dart';
 import 'package:pos_app/widgets/low_stock_sheet.dart';
 
-Product _product(String id, String name, int quantity) => Product(
+Product _product(String id, String name, double quantity) => Product(
       id: id,
       name: name,
       category: 'General',
@@ -47,8 +47,8 @@ void main() {
     await pumpSheet(
       tester,
       LowStockProductsSheet(
-        lowStock: [_product('1', 'Milk', 4)],
-        outOfStock: [_product('2', 'Bread', 0)],
+        lowStock: [_product('1', 'Milk', 4.0)],
+        outOfStock: [_product('2', 'Bread', 0.0)],
       ),
     );
 
