@@ -77,6 +77,9 @@ Fields affected: `Product.quantity`, `SaleItem.quantity`,
 
 ### 6. Display & formatting
 
+- Quantities stored as full doubles internally; **rounded to 3 decimals**
+  at input and when persisted (0.85 kg, not 0.8504 kg).
+
 - Quantities formatted with unit: "0.85 kg" / "12.5 ل" (localized ar/en),
   trailing zeros trimmed.
 - Receipts: `0.850 kg × 800 = 680 DZD` line format.
