@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:pos_app/models/hive_adapters/legacy_tolerant_adapters.dart';
 import 'package:pos_app/models/inventory_movement_enum_adapters.dart';
 import 'package:pos_app/models/inventory_movement_model.dart';
 
@@ -31,7 +32,7 @@ void main() {
       productId: 'p1',
       productName: 'منتج',
       type: MovementType.incoming,
-      quantity: 5,
+      quantity: 5.0,
       price: 100,
       total: 500,
       userId: 'u1',
@@ -45,7 +46,7 @@ void main() {
     expect(read.id, 'm1');
     expect(read.type, MovementType.incoming);
     expect(read.status, MovementStatus.completed);
-    expect(read.quantity, 5);
+    expect(read.quantity, 5.0);
     expect(read.supplierName, 'مورد');
   });
 }

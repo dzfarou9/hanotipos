@@ -55,7 +55,7 @@ void main() {
             productId: 'pr1',
             productName: 'سكر',
             costPrice: 100,
-            quantity: 5,
+            quantity: 5.0,
             subtotal: 500,
           ),
         ],
@@ -85,7 +85,7 @@ void main() {
               productId: 'pr1',
               productName: 'سكر',
               costPrice: 100,
-              quantity: 2,
+              quantity: 2.0,
               subtotal: 200),
         ],
         total: 200,
@@ -109,7 +109,7 @@ void main() {
               productId: 'pr1',
               productName: 'سكر',
               costPrice: 50,
-              quantity: 10,
+              quantity: 10.0,
               subtotal: 500),
         ],
         total: 500,
@@ -120,7 +120,7 @@ void main() {
               productId: 'pr1',
               productName: 'سكر',
               costPrice: 50,
-              quantity: 3,
+              quantity: 3.0,
               subtotal: 150),
         ],
         returnTotal: 150,
@@ -130,7 +130,7 @@ void main() {
       final restored = Purchase.fromJson(purchase.toJson());
       expect(restored.invoiceNumber, 'INV-2026-001');
       expect(restored.returnedItems!.length, 1);
-      expect(restored.returnedItems!.first.quantity, 3);
+      expect(restored.returnedItems!.first.quantity, 3.0);
       expect(restored.returnTotal, 150);
       expect(restored.isFullyReturned, isFalse);
       expect(restored.remainingTotal, 350);
@@ -147,14 +147,14 @@ void main() {
               productId: 'x',
               productName: 'سكر',
               costPrice: 10,
-              quantity: 10,
+              quantity: 10.0,
               subtotal: 100),
           PurchaseItem(
               id: 'b',
               productId: 'y',
               productName: 'زيت',
               costPrice: 20,
-              quantity: 4,
+              quantity: 4.0,
               subtotal: 80),
         ],
         total: 180,
@@ -164,7 +164,7 @@ void main() {
               productId: 'x',
               productName: 'سكر',
               costPrice: 10,
-              quantity: 2,
+              quantity: 2.0,
               subtotal: 20),
         ],
         userId: 'u1',
@@ -172,16 +172,16 @@ void main() {
 
       // بدون مرتجعات قديمة: x متاح 8، y متاح 4
       final first = purchase.availableForReturn();
-      expect(first.firstWhere((e) => e.productId == 'x').quantity, 8);
-      expect(first.firstWhere((e) => e.productId == 'y').quantity, 4);
+      expect(first.firstWhere((e) => e.productId == 'x').quantity, 8.0);
+      expect(first.firstWhere((e) => e.productId == 'y').quantity, 4.0);
 
       // مع مرتجع قديم مستقل (نظام سابق): x متاح 5
       final second =
-          purchase.availableForReturn(extraReturned: {'x': 3});
-      expect(second.firstWhere((e) => e.productId == 'x').quantity, 5);
+          purchase.availableForReturn(extraReturned: {'x': 3.0});
+      expect(second.firstWhere((e) => e.productId == 'x').quantity, 5.0);
       // صنف رُجع بالكامل لا يظهر
       final third =
-          purchase.availableForReturn(extraReturned: {'x': 8});
+          purchase.availableForReturn(extraReturned: {'x': 8.0});
       expect(third.any((e) => e.productId == 'x'), isFalse);
       expect(third.any((e) => e.productId == 'y'), isTrue);
     });

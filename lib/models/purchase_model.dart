@@ -3,26 +3,20 @@
 import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-part 'purchase_model.g.dart';
+import '../helpers/quantity_format.dart';
 
-@HiveType(typeId: 6)
 class PurchaseItem {
-  @HiveField(0)
   final String id;
 
-  @HiveField(1)
   final String productId;
 
-  @HiveField(2)
   final String productName;
 
-  @HiveField(3)
   final double costPrice;
 
-  @HiveField(4)
-  final int quantity;
+  /// الكمية: عدد القطع أو الوزن/الحجم (كغ/لتر) حسب وحدة المنتج.
+  final double quantity;
 
-  @HiveField(5)
   final double subtotal;
 
   PurchaseItem({
@@ -40,7 +34,7 @@ class PurchaseItem {
       productId: json['product_id'] ?? '',
       productName: json['product_name'] ?? '',
       costPrice: (json['cost_price'] as num?)?.toDouble() ?? 0.0,
-      quantity: json['quantity'] ?? 0,
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -57,58 +51,41 @@ class PurchaseItem {
   }
 }
 
-@HiveType(typeId: 7)
 class Purchase extends HiveObject {
-  @HiveField(0)
   final String id;
 
-  @HiveField(1)
   final List<PurchaseItem> items;
 
-  @HiveField(2)
   final String supplierId;
 
-  @HiveField(3)
   final String supplierName;
 
-  @HiveField(4)
   final double total;
 
-  @HiveField(5)
   final String? note;
 
   // 'purchase' أو 'return'
-  @HiveField(6)
   final String purchaseType;
 
-  @HiveField(7)
   final String? originalPurchaseId;
 
-  @HiveField(8)
   final String userId;
 
-  @HiveField(9)
   bool isSynced;
 
-  @HiveField(10)
   final DateTime createdAt;
 
   // رقم فاتورة المورد (اختياري)
-  @HiveField(11)
   final String? invoiceNumber;
 
   // ⭐ المرتجعات داخل نفس السجل (نمط Sale): الأصناف المرتجعة
-  @HiveField(12)
   final List<PurchaseItem>? returnedItems;
 
-  @HiveField(13)
   final double? returnTotal;
 
-  @HiveField(14)
   final bool isFullyReturned;
 
   // للسحب التزايدي التحديثي (LWW)
-  @HiveField(15)
   final DateTime updatedAt;
 
   Purchase({
@@ -143,20 +120,21 @@ class Purchase extends HiveObject {
 
   // المتاح للإرجاع لكل صنف: المشترى − المرتجع المحفوظ − مرتجعات قديمة مستقلة
   List<PurchaseItem> availableForReturn(
-      {Map<String, int> extraReturned = const {}}) {
-    final returned = <String, int>{};
+      {Map<String, double> extraReturned = const {}}) {
+    final returned = <String, double>{};
     for (final item in returnedItems ?? const <PurchaseItem>[]) {
-      returned[item.productId] = (returned[item.productId] ?? 0) + item.quantity;
+      returned[item.productId] =
+          (returned[item.productId] ?? 0.0) + item.quantity;
     }
     extraReturned.forEach((productId, qty) {
-      returned[productId] = (returned[productId] ?? 0) + qty;
+      returned[productId] = (returned[productId] ?? 0.0) + qty;
     });
 
     final available = <PurchaseItem>[];
     for (final item in items) {
-      final already = returned[item.productId] ?? 0;
+      final already = returned[item.productId] ?? 0.0;
       final remaining = item.quantity - already;
-      if (remaining > 0) {
+      if (QuantityFormat.greaterThanQty(remaining, 0)) {
         available.add(PurchaseItem(
           id: item.id,
           productId: item.productId,

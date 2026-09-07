@@ -2,8 +2,6 @@
 
 import 'package:hive/hive.dart';
 
-part 'inventory_movement_model.g.dart';
-
 /// نوع حركة المخزون
 // ملاحظة: الenums تُخزَّن عبر adapters مكتوبة يدوياً في
 // inventory_movement_enum_adapters.dart لأن hive_generator لا يدعمها
@@ -32,54 +30,38 @@ enum MovementStatus {
   cancelled,
 }
 
-@HiveType(typeId: 4)
 class InventoryMovement extends HiveObject {
-  @HiveField(0)
   final String id;
 
-  @HiveField(1)
   final String productId;
 
-  @HiveField(2)
   final String productName;
 
-  @HiveField(3)
   final MovementType type;
 
-  @HiveField(4)
-  final int quantity;
+  /// الكمية: عدد القطع أو الوزن/الحجم (كغ/لتر) حسب وحدة المنتج.
+  final double quantity;
 
-  @HiveField(5)
   final double price;
 
-  @HiveField(6)
   final double total;
 
-  @HiveField(7)
   final String? referenceId;
 
-  @HiveField(8)
   final String? referenceNumber;
 
-  @HiveField(9)
   final String? note;
 
-  @HiveField(10)
   final DateTime createdAt;
 
-  @HiveField(11)
   final String userId;
 
-  @HiveField(12)
   MovementStatus status;
 
-  @HiveField(13)
   bool isSynced;
 
-  @HiveField(14)
   final String? customerName;
 
-  @HiveField(15)
   final String? supplierName;
 
   InventoryMovement({
@@ -108,7 +90,7 @@ class InventoryMovement extends HiveObject {
       productId: json['product_id'] as String,
       productName: json['product_name'] as String,
       type: _parseMovementType(json['type'] as String),
-      quantity: json['quantity'] as int,
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
       price: (json['price'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
       referenceId: json['reference_id'] as String?,
@@ -203,7 +185,7 @@ class InventoryMovement extends HiveObject {
   }
 
   /// الحصول على التأثير على المخزون (موجب أو سالب)
-  int getStockEffect() {
+  double getStockEffect() {
     switch (type) {
       case MovementType.outgoing:
       case MovementType.return_out:
