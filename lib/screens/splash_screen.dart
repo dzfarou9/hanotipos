@@ -2,10 +2,9 @@
 //
 // شاشة البداية — تصميم "مصقول" باتباع الثيم (فاتح/داكن):
 //   1) خلفية بشعاع إmeraldي ناعم + مدارَان يتنفسان (transform فقط)
-//   2) علامة مونوغرام "H" بتقنية الغلاف المزدوج (Double-Bezel)
-//   3) اسم العلامة: صعود + انكماش تباعد الأحرف (بدون توهج)
-//   4) شريحة الشعار النصي (Tagline) بحافة شعرية
-//   5) لودر: ثلاث نقاط تتنفس بتتابع زمني (بدون Spinner)
+//   2) اسم العلامة: صعود + انكماش تباعد الأحرف (بدون توهج)
+//   3) شريحة الشعار النصي (Tagline) بحافة شعرية
+//   4) لودر: ثلاث نقاط تتنفس بتتابع زمني (بدون Spinner)
 //
 // كل الحركات transform/opacity فقط، بمنحنيات easeOutCubic/easeOutExpo —
 // بلا elastic/bounce وبلا ظلال توهج. منطق الجلسة والمزامنة والتنقل
@@ -45,12 +44,10 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   // ── متحكمات الدخول المتتابع ──
-  late final AnimationController _markController;   // المونوغرام (spring واحد)
   late final AnimationController _wordmarkController;
   late final AnimationController _pillController;
   late final AnimationController _loaderController;
 
-  late final Animation<double> _markScale;
   late final Animation<double> _wordmarkFade;
   late final Animation<double> _wordmarkRise;
   late final Animation<double> _wordmarkTracking;
@@ -70,14 +67,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    _markController = AnimationController(
-      duration: const Duration(milliseconds: 700),
-      vsync: this,
-    );
-    _markScale = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _markController, curve: Curves.easeOutBack),
-    );
 
     _wordmarkController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -141,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 900), () {
       if (mounted) _loaderController.forward();
     });
-    _markController.forward();
+    _wordmarkController.forward();
 
     // ⭐ فحص الجلسة بعد أول إطار: الشاشة تُرسم فوراً قبل أي عمل شبكة/تخزين،
     // وأي فشل في فحص الجلسة يُسقط بأمان إلى شاشة الدخول بدلاً من تجميد البداية.
@@ -152,7 +141,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _markController.dispose();
     _wordmarkController.dispose();
     _pillController.dispose();
     _loaderController.dispose();
@@ -368,17 +356,6 @@ class _SplashScreenState extends State<SplashScreen>
               children: [
                 const Spacer(flex: 2),
 
-                // العلامة: غلاف مزدوج (حلقة شعرية + نواة متدرجة)
-                AnimatedBuilder(
-                  animation: _markController,
-                  builder: (context, child) => Transform.scale(
-                    scale: _markScale.value,
-                    child: child,
-                  ),
-                  child: _MonogramMark(accentColor: accentColor),
-                ),
-                const SizedBox(height: 28),
-
                 // اسم العلامة: صعود + انكماش التباعد
                 Directionality(
                   textDirection: textDirection,
@@ -469,57 +446,6 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// العلامة: غلاف مزدوج — حلقة شعرية خارجية + نواة متدرجة بحواف متراكزة
-// ═════════════════════════════════════════════════════════════════════════════
-
-class _MonogramMark extends StatelessWidget {
-  final Color accentColor;
-  const _MonogramMark({required this.accentColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 84,
-      height: 84,
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: accentColor.withValues(alpha: 0.15)),
-        color: accentColor.withValues(alpha: 0.04),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF00A56E), Color(0xFF006C48)],
-          ),
-          boxShadow: [
-            // ظل ناعم جداً منبعث — ليس ظلاً حاداً
-            BoxShadow(
-              color: const Color(0xFF00875A).withValues(alpha: 0.25),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        alignment: Alignment.center,
-        child: const Text(
-          'H',
-          style: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-            height: 1.0,
-          ),
-        ),
       ),
     );
   }

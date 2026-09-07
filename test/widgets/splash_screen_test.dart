@@ -1,6 +1,6 @@
 // test/widgets/splash_screen_test.dart
 //
-// اختبارات شاشة البداية المعاد تصميمها: العلامة المونوغرام، الكلمة،
+// اختبارات شاشة البداية المعاد تصميمها: الكلمة، الشريحة،
 // واللودر النقطي — بدون أي منطق جلسات/مزامنة.
 
 import 'package:easy_localization/easy_localization.dart';
@@ -62,16 +62,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1700));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
   }
-
-  testWidgets('shows monogram H glyph inside a rounded mark', (tester) async {
-    await pumpSplash(
-      tester,
-      onSplashVisible: () async {
-        // حرف العلامة داخل الحاوية المتدرجة
-        expect(find.text('H'), findsOneWidget);
-      },
-    );
-  });
 
   testWidgets('shows brand name wordmark', (tester) async {
     await pumpSplash(
