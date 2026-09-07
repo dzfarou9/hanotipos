@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import '../../helpers/localization_helper.dart';
 import '../../helpers/quantity_format.dart';
 import '../../models/product_model.dart';
-import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/design_tokens.dart';
 
@@ -65,6 +64,8 @@ class _WeightedQuantitySheetState extends State<_WeightedQuantitySheet> {
   @override
   Widget build(BuildContext context) {
     final unitLabel = LocalizationHelper.unitLabel(widget.product.unit);
+    final titleColor = AppTextStyles.dialogTitleColor(context);
+    final bodyColor = AppTextStyles.dialogBodyColor(context);
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -78,7 +79,7 @@ class _WeightedQuantitySheetState extends State<_WeightedQuantitySheet> {
         children: [
           Text(
             widget.product.name,
-            style: AppTextStyles.headline4(),
+            style: AppTextStyles.headline4(color: titleColor),
           ),
           const SizedBox(height: 4),
           Text(
@@ -87,7 +88,7 @@ class _WeightedQuantitySheetState extends State<_WeightedQuantitySheet> {
                   'price': widget.product.price.toStringAsFixed(0),
                   'unit': unitLabel,
                 }),
-            style: AppTextStyles.bodyMedium(color: AppColors.grey500),
+            style: AppTextStyles.bodyMedium(color: bodyColor),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -112,7 +113,7 @@ class _WeightedQuantitySheetState extends State<_WeightedQuantitySheet> {
                   ? '${LocalizationHelper.posOutOfStockFeedback} (${QuantityFormat.quantity(widget.product.quantity)} $unitLabel)'
                   : null,
             ),
-            style: AppTextStyles.headline3(),
+            style: AppTextStyles.headline3(color: titleColor),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -133,11 +134,11 @@ class _WeightedQuantitySheetState extends State<_WeightedQuantitySheet> {
             children: [
               Text(
                 LocalizationHelper.posTotal,
-                style: AppTextStyles.bodyMedium(color: AppColors.grey500),
+                style: AppTextStyles.bodyMedium(color: bodyColor),
               ),
               Text(
                 '${(_qty * widget.product.price).toStringAsFixed(2)} ${widget.currency}',
-                style: AppTextStyles.headline3(),
+                style: AppTextStyles.headline3(color: titleColor),
               ),
             ],
           ),
