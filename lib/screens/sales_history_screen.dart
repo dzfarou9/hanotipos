@@ -203,8 +203,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
       return;
     }
 
-    // ⭐ controllers حقول الكمية للعناصر الموزونة (تُحرَّر بعد إغلاق الحوار)
+    // ⭐ controllers حقول الكمية والكميات المختارة للعناصر الموزونة
+    // (خارج الحوار كي تبقى حالة الكميات عند إعادة بناء الـbuilder)
     final returnQtyControllers = <String, TextEditingController>{};
+    final returnSelectedQty = <String, double>{};
 
     final selectedItems = await showDialog<List<SaleItem>>(
       context: context,
@@ -217,6 +219,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
         titleColor,
         bodyColor,
         returnQtyControllers,
+        returnSelectedQty,
       ),
     );
 
@@ -448,14 +451,16 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     Color titleColor,
     Color bodyColor,
     Map<String, TextEditingController> qtyControllers,
+    Map<String, double> selectedQtyMap,
   ) {
-    // ⭐ الكمية المختارة لكل عنصر (افتراضياً الكمية الكاملة المتاحة)
-    final Map<String, double> selectedQtyMap = {};
     // ⭐ المنتجات الموزونة (kg/litre) تسمح بإدخال كمية مرتجعة جزئية
     final Set<String> weightedItemIds = {};
     final Set<String> qtyErrorIds = {};
     for (var item in availableItems) {
-      selectedQtyMap[item.id] = item.quantity;
+      // ⭐ يُعاد بناء الحوار؛ لا تُهمل الكميات التي أدخلها المستخدم
+      if (!selectedQtyMap.containsKey(item.id)) {
+        selectedQtyMap[item.id] = item.quantity;
+      }
       final product = _db.getProductById(item.productId);
       if (product?.isWeighted == true) {
         weightedItemIds.add(item.id);
