@@ -19,6 +19,7 @@ import '../models/debt_transaction_model.dart';
 import '../models/debt_transaction_enum_adapter.dart';
 import '../helpers/debt_ledger_helper.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import 'sales_cache.dart';
 import 'products_cache.dart';
 
@@ -584,7 +585,7 @@ class DatabaseService {
     required String name,
     required String category,
     required double price,
-    required int quantity,
+    required double quantity,
     String? description,
     String? barcode,
     required String userId,
@@ -619,7 +620,7 @@ class DatabaseService {
     required String name,
     required String category,
     required double price,
-    required int quantity,
+    required double quantity,
     String? description,
     String? barcode,
     required String userId,
@@ -655,7 +656,7 @@ class DatabaseService {
     required String name,
     required String category,
     required double price,
-    required int quantity,
+    required double quantity,
     String? description,
     String? barcode,
     int? minStockLevel,
@@ -680,7 +681,7 @@ class DatabaseService {
       product.costPrice = costPrice;
       product.updatedAt = DateTime.now();
       product.isSynced = false; // ⭐ تعيين isSynced = false عند التحديث
-      await product.save();
+      await _productsBox.put(product.id, product);
 
       _addProductToBarcodeIndex(product);
       _clearStatsCache();
@@ -696,20 +697,20 @@ class DatabaseService {
       product.costPrice = costPrice;
       product.updatedAt = DateTime.now();
       product.isSynced = false;
-      await product.save();
+      await _productsBox.put(product.id, product);
       _clearStatsCache();
       _productsCache.invalidate();
     }
   }
 
   // ⭐ تحديث الكمية مع تعيين isSynced = false
-  Future<void> updateQuantity(String id, int newQuantity) async {
+  Future<void> updateQuantity(String id, double newQuantity) async {
     final product = _productsBox.get(id);
     if (product != null) {
       product.quantity = newQuantity;
       product.updatedAt = DateTime.now();
       product.isSynced = false; // ⭐ تعيين isSynced = false عند التحديث
-      await product.save();
+      await _productsBox.put(product.id, product);
       _clearStatsCache();
       _productsCache.invalidate();
     }
@@ -779,13 +780,16 @@ class DatabaseService {
   Map<String, dynamic> getInventoryStats() {
     final products = _productsBox.values.toList();
     final totalProducts = products.length;
-    final totalQuantity = products.fold<int>(0, (sum, p) => sum + p.quantity);
+    final totalQuantity = products.fold<double>(0.0, (sum, p) => sum + p.quantity);
     final totalValue =
         products.fold<double>(0, (sum, p) => sum + (p.price * p.quantity));
     final lowStock = products
-        .where((p) => p.quantity <= p.minStockLevel && p.quantity > 0)
+        .where((p) =>
+            p.quantity <= p.minStockLevel &&
+            !QuantityFormat.isZeroQty(p.quantity))
         .length;
-    final outOfStock = products.where((p) => p.quantity == 0).length;
+    final outOfStock =
+        products.where((p) => QuantityFormat.isZeroQty(p.quantity)).length;
     return {
       'totalProducts': totalProducts,
       'totalQuantity': totalQuantity,
@@ -1014,7 +1018,8 @@ class DatabaseService {
         sale.items.fold(0.0, (sum, item) => sum + item.quantity);
     final totalReturnedQuantity =
         mergedReturned.values.fold(0.0, (sum, item) => sum + item.quantity);
-    final fullyReturned = totalReturnedQuantity >= totalOriginalQuantity;
+    final fullyReturned =
+        !QuantityFormat.greaterThanQty(totalOriginalQuantity, totalReturnedQuantity);
 
     final updatedSale = Sale(
       id: sale.id,
@@ -1057,7 +1062,7 @@ class DatabaseService {
     final product = _productsBox.get(id);
     if (product != null) {
       product.isSynced = true;
-      await product.save();
+      await _productsBox.put(product.id, product);
     }
   }
 
@@ -1110,7 +1115,7 @@ class DatabaseService {
     required String productId,
     required String productName,
     required MovementType type,
-    required int quantity,
+    required double quantity,
     required double price,
     required double total,
     String? referenceId,
@@ -1149,7 +1154,7 @@ class DatabaseService {
     required String productId,
     required String productName,
     required MovementType type,
-    required int quantity,
+    required double quantity,
     required double price,
     required double total,
     String? referenceId,
@@ -1408,10 +1413,11 @@ class DatabaseService {
     final newReturnTotal = (purchase.returnTotal ?? 0.0) + returnTotal;
 
     final totalOriginal =
-        purchase.items.fold<int>(0, (sum, i) => sum + i.quantity);
+        purchase.items.fold<double>(0.0, (sum, i) => sum + i.quantity);
     final totalReturned =
-        merged.values.fold<int>(0, (sum, i) => sum + i.quantity);
-    final fully = isFullyReturnedOverride ?? totalReturned >= totalOriginal;
+        merged.values.fold<double>(0.0, (sum, i) => sum + i.quantity);
+    final fully = isFullyReturnedOverride ??
+        !QuantityFormat.greaterThanQty(totalOriginal, totalReturned);
 
     final updated = Purchase(
       id: purchase.id,

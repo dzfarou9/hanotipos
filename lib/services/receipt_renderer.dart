@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../helpers/quantity_format.dart';
 import 'receipt_data.dart';
 
 /// Renders a [ReceiptData] into a thermal-optimized PDF receipt.
@@ -245,7 +246,7 @@ class ThermalReceiptRenderer {
             pw.Text(item.name, style: pw.TextStyle(fontSize: 8.5 * s)),
             pw.SizedBox(height: 1 * s),
             pw.Text(
-              '${item.quantity} x ${_num(item.unitPrice)} = ${_num(item.lineTotal)}',
+              '${QuantityFormat.quantity(item.quantity)} x ${_num(item.unitPrice)} = ${_num(item.lineTotal)}',
               textAlign: pw.TextAlign.right,
               style: pw.TextStyle(fontSize: 8 * s),
             ),
@@ -264,7 +265,7 @@ class ThermalReceiptRenderer {
           ),
           pw.SizedBox(width: 6 * s),
           pw.Text(
-            '${item.quantity} x ${_num(item.unitPrice)}   ${_num(item.lineTotal)}',
+            '${QuantityFormat.quantity(item.quantity)} x ${_num(item.unitPrice)}   ${_num(item.lineTotal)}',
             style: pw.TextStyle(fontSize: 8.5 * s),
           ),
         ],

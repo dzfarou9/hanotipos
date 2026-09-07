@@ -25,7 +25,7 @@ extension ThermalPaperSizeX on ThermalPaperSize {
 /// A single product line rendered on a thermal receipt.
 class ReceiptLine {
   final String name;
-  final int quantity;
+  final double quantity;
   final double unitPrice;
   final double lineTotal;
 

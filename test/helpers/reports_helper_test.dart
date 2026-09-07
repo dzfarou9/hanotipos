@@ -18,7 +18,7 @@ Product _product(String id, {double? costPrice}) => Product(
       costPrice: costPrice,
     );
 
-SaleItem _saleItem(double price, int qty, {String productId = 'p1'}) => SaleItem(
+SaleItem _saleItem(double price, double qty, {String productId = 'p1'}) => SaleItem(
       id: 'si-$productId-$price-$qty',
       productId: productId,
       productName: 'Product $productId',
@@ -53,7 +53,7 @@ Sale _sale(
       isFullyReturned: isFullyReturned,
     );
 
-PurchaseItem _purchaseItem(double cost, int qty) => PurchaseItem(
+PurchaseItem _purchaseItem(double cost, double qty) => PurchaseItem(
       id: 'pi-$cost-$qty',
       productId: 'p1',
       productName: 'Product p1',

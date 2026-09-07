@@ -14,6 +14,7 @@ import '../models/debt_transaction_model.dart';
 import 'database_service.dart';
 import 'firebase_service.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../helpers/sync_policy.dart';
 import '../helpers/suppliers_stock_policy.dart';
 
@@ -1307,7 +1308,7 @@ class SyncService {
     required String name,
     required String category,
     required double price,
-    required int quantity,
+    required double quantity,
     String? description,
     String? barcode,
     int minStockLevel = 10,
@@ -1463,7 +1464,7 @@ class SyncService {
     required String name,
     required String category,
     required double price,
-    required int quantity,
+    required double quantity,
     String? description,
     String? barcode,
     int? minStockLevel,
@@ -1862,15 +1863,16 @@ class SyncService {
     if (!original.canBeReturned) {
       throw Exception(LocalizationHelper.purchasesAlreadyFullyReturned);
     }
-    if (returnItems.isEmpty || returnItems.every((i) => i.quantity <= 0)) {
+    if (returnItems.isEmpty ||
+        returnItems.every((i) => i.quantity <= QuantityFormat.epsilon)) {
       throw Exception(LocalizationHelper.purchasesEmptyCart);
     }
 
     // ⭐ التحقق من السقوف: المرتجع المحفوظ داخل السجل + المرتجعات القديمة المستقلة
-    final returnedSoFar = <String, int>{};
+    final returnedSoFar = <String, double>{};
     for (final item in original.returnedItems ?? const <PurchaseItem>[]) {
       returnedSoFar[item.productId] =
-          (returnedSoFar[item.productId] ?? 0) + item.quantity;
+          (returnedSoFar[item.productId] ?? 0.0) + item.quantity;
     }
     for (final r in _db.getReturnPurchasesFor(originalPurchaseId)) {
       for (final item in r.items) {
@@ -1958,11 +1960,11 @@ class SyncService {
     final isReturnRecord = purchase.isReturn;
 
     // صافي أثر كل منتج: للشراء = المشترى − المرتجع الداخلي؛ للمرتجع = كميته
-    final netByProduct = <String, int>{};
+    final netByProduct = <String, double>{};
     final nameByProduct = <String, String>{};
     for (final item in purchase.items) {
       netByProduct[item.productId] =
-          (netByProduct[item.productId] ?? 0) + item.quantity;
+          (netByProduct[item.productId] ?? 0.0) + item.quantity;
       nameByProduct[item.productId] = item.productName;
     }
     if (!isReturnRecord) {
@@ -1975,7 +1977,7 @@ class SyncService {
 
     // ⭐ تحقق شامل قبل أي تعديل (منع التطبيق الجزئي)
     netByProduct.forEach((productId, effect) {
-      if (effect == 0) return;
+      if (QuantityFormat.isZeroQty(effect)) return;
       final product = _db.getProductById(productId);
       if (product == null) return;
       final change = isReturnRecord ? effect : -effect;
@@ -1988,7 +1990,7 @@ class SyncService {
 
     // ⭐ تطبيق الأثر
     for (final entry in netByProduct.entries) {
-      if (entry.value == 0) continue;
+      if (QuantityFormat.isZeroQty(entry.value)) continue;
       final product = _db.getProductById(entry.key);
       if (product == null) continue;
       final change = isReturnRecord ? entry.value : -entry.value;
