@@ -239,7 +239,10 @@
     "paid_now_exceeds_total": "Le montant ne peut pas dépasser {total}",
     "paid_now_pay_later": "Payer plus tard",
     "paid_now_confirm": "Confirmer",
-    "paid_on_purchase": "Payé à l'achat"
+    "paid_on_purchase": "Payé à l'achat",
+    "weighted_qty_title": "Saisir la quantité",
+    "weighted_price_per": "{price} DA / {unit}",
+    "weighted_add": "Ajouter au panier"
   },
 
   "inventory": {

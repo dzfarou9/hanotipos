@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
@@ -17,12 +18,14 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/design_tokens.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../widgets/barcode_scanner_view.dart';
 import '../widgets/pos/checkout_confirmation_sheet.dart';
 import '../widgets/pos/held_orders.dart';
 import '../widgets/pos/invoice_options_dialog.dart';
 import '../widgets/pos/payment_method_sheet.dart';
 import '../widgets/pos/product_grid_item.dart';
+import '../widgets/pos/weighted_quantity_sheet.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/customers/customer_picker_sheet.dart';
 
@@ -369,7 +372,12 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                       Expanded(
                         child: TextFormField(
                           controller: quantityController,
-                          keyboardType: TextInputType.number,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d{0,3}')),
+                          ],
                           decoration: InputDecoration(
                             labelText: LocalizationHelper.posQuantity,
                             prefixIcon: const Icon(
@@ -381,9 +389,9 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                           validator: (v) {
                             if (v == null || v.isEmpty)
                               return LocalizationHelper.inventoryQuantityRequired;
-                            if (int.tryParse(v) == null)
+                            if (double.tryParse(v) == null)
                               return LocalizationHelper.error;
-                            if (int.tryParse(v)! <= 0)
+                            if (double.tryParse(v)! <= 0)
                               return LocalizationHelper.error;
                             return null;
                           },
@@ -428,7 +436,8 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                           await _addNewProductFromPOS(
                             name: nameController.text,
                             price: double.parse(priceController.text),
-                            quantity: int.parse(quantityController.text),
+                            quantity: QuantityFormat.round(
+                                double.parse(quantityController.text)),
                             barcode: barcode,
                             costPrice:
                                 (cost != null && cost > 0) ? cost : null,
@@ -464,7 +473,7 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
   Future<void> _addNewProductFromPOS({
     required String name,
     required double price,
-    required int quantity,
+    required double quantity,
     required String barcode,
     double? costPrice,
   }) async {
@@ -875,7 +884,7 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${item.product.name} x${item.quantity}',
+                        '${item.product.name} x${QuantityFormat.quantity(item.quantity)}',
                         style: AppTextStyles.caption(fontSize: 10),
                       ),
                       const SizedBox(width: 8),
@@ -1100,11 +1109,12 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                                             width: 44,
                                             height: 44,
                                             alignment: Alignment.center,
-                                            child: Text(
-                                              '${item.quantity}',
-                                              style: AppTextStyles.caption(
-                                                  fontSize: 12),
-                                            ),
+                                             child: Text(
+                                               QuantityFormat.quantity(
+                                                   item.quantity),
+                                               style: AppTextStyles.caption(
+                                                   fontSize: 12),
+                                             ),
                                           ),
                                           InkWell(
                                             onTap: () =>
@@ -1640,15 +1650,8 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                                         return POSProductGridItem(
                                           product: product,
                                           currency: _currency,
-                                          onTap: () {
-                                            if (product.quantity > 0) {
-                                              context
-                                                  .read<CartService>()
-                                                  .addProduct(product);
-                                              _showSnackBar(
-                                                  '${product.name} ${LocalizationHelper.posAdded}',
-                                                  AppColors.success);
-                                            } else {
+                                          onTap: () async {
+                                            if (product.quantity <= 0) {
                                               // ⭐ تغذية راجعة واضحة عند منتج نفد مخزونه
                                               ScannerFeedbackService
                                                   .outOfStock();
@@ -1656,7 +1659,32 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                                                   LocalizationHelper
                                                       .posOutOfStockFeedback,
                                                   AppColors.error);
+                                              return;
                                             }
+                                            if (!product.isWeighted) {
+                                              context
+                                                  .read<CartService>()
+                                                  .addProduct(product);
+                                              _showSnackBar(
+                                                  '${product.name} ${LocalizationHelper.posAdded}',
+                                                  AppColors.success);
+                                              return;
+                                            }
+                                            // ⭐ منتج موزون (kg/litre): ورقة إدخال الكمية العشرية
+                                            final cart =
+                                                context.read<CartService>();
+                                            final qty =
+                                                await showWeightedQuantitySheet(
+                                              context,
+                                              product: product,
+                                              currency: _currency,
+                                            );
+                                            if (qty == null || !mounted) return;
+                                            cart.addProduct(product,
+                                                quantity: qty);
+                                            _showSnackBar(
+                                                '${product.name} ${LocalizationHelper.posAdded}',
+                                                AppColors.success);
                                           },
                                         );
                                       },

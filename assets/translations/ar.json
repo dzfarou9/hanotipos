@@ -239,7 +239,10 @@
     "paid_now_exceeds_total": "المبلغ لا يتجاوز {total}",
     "paid_now_pay_later": "دفع لاحقاً",
     "paid_now_confirm": "تأكيد",
-    "paid_on_purchase": "دفع عند الشراء"
+    "paid_on_purchase": "دفع عند الشراء",
+    "weighted_qty_title": "أدخل الكمية",
+    "weighted_price_per": "{price} دج / {unit}",
+    "weighted_add": "إضافة للسلة"
   },
 
   "inventory": {

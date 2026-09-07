@@ -73,7 +73,8 @@ class CartService extends ChangeNotifier {
       _items[existingIndex].quantity =
           QuantityFormat.round(_items[existingIndex].quantity + quantity);
     } else {
-      _items.add(CartItem(product: product, quantity: quantity));
+      _items.add(CartItem(
+          product: product, quantity: QuantityFormat.round(quantity)));
     }
     notifyListeners();
   }

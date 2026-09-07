@@ -8,6 +8,7 @@ import '../../services/database_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../helpers/localization_helper.dart';
+import '../../helpers/quantity_format.dart';
 import 'receipt_formatting.dart';
 
 const String _currency = 'DZD';
@@ -148,7 +149,7 @@ Future<void> showCheckoutConfirmationSheet(
                     const SizedBox(height: 4),
                     buildPosReceiptRow(
                       LocalizationHelper.posItems,
-                      '${cart.totalItems} ${LocalizationHelper.posProductsTitle}',
+                      '${QuantityFormat.quantity(cart.totalItems)} ${LocalizationHelper.posProductsTitle}',
                       bodyColor,
                     ),
                     const SizedBox(height: 12),

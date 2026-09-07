@@ -7,6 +7,7 @@ import '../../services/cart_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../helpers/localization_helper.dart';
+import '../../helpers/quantity_format.dart';
 import '../../helpers/time_format_helper.dart';
 
 Future<void> showHoldOrderDialog(
@@ -51,7 +52,7 @@ Future<void> showHoldOrderDialog(
             ),
             const SizedBox(height: 8),
             Text(
-              '${cart.totalItems} ${LocalizationHelper.posItems} • ${cart.total.toStringAsFixed(2)} $currency',
+              '${QuantityFormat.quantity(cart.totalItems)} ${LocalizationHelper.posItems} • ${cart.total.toStringAsFixed(2)} $currency',
               style: AppTextStyles.caption(color: AppColors.primary),
             ),
             const SizedBox(height: 12),
@@ -201,7 +202,7 @@ Future<void> showHeldOrdersSheet(
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  '${order.totalItems} ${LocalizationHelper.posItems} • ${order.total.toStringAsFixed(2)} $currency',
+                                  '${QuantityFormat.quantity(order.totalItems)} ${LocalizationHelper.posItems} • ${order.total.toStringAsFixed(2)} $currency',
                                   style: AppTextStyles.caption(
                                       color: bodyColor, fontSize: 11),
                                 ),

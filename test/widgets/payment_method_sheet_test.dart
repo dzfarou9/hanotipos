@@ -88,7 +88,7 @@ void main() {
     expect(find.text('Edahabia / CIB'), findsOneWidget);
     expect(find.text('Debt / Credit'), findsOneWidget);
     expect(find.text('500.00 DZD'), findsOneWidget);
-    expect(find.text('2.0 items'), findsOneWidget);
+    expect(find.text('2 items'), findsOneWidget);
   });
 
   testWidgets('tapping cash closes the sheet and fires onCash only',

@@ -11,6 +11,7 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/design_tokens.dart';
 import '../../theme/screen_palette.dart';
 import '../../helpers/localization_helper.dart';
+import '../../helpers/quantity_format.dart';
 
 const String _currency = 'DZD';
 
@@ -173,7 +174,7 @@ class _PaymentMethodSheet extends StatelessWidget {
               ),
               const SizedBox(height: DesignTokens.space2),
               Text(
-                '${cart.totalItems} ${LocalizationHelper.posItems}',
+                '${QuantityFormat.quantity(cart.totalItems)} ${LocalizationHelper.posItems}',
                 style: AppTextStyles.caption(color: context.captionColor),
               ),
             ],

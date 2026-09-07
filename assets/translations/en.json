@@ -239,7 +239,10 @@
     "paid_now_exceeds_total": "The amount cannot exceed {total}",
     "paid_now_pay_later": "Pay later",
     "paid_now_confirm": "Confirm",
-    "paid_on_purchase": "Paid at purchase"
+    "paid_on_purchase": "Paid at purchase",
+    "weighted_qty_title": "Enter quantity",
+    "weighted_price_per": "{price} DZD / {unit}",
+    "weighted_add": "Add to cart"
   },
 
   "inventory": {
