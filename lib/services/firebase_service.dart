@@ -939,6 +939,7 @@ Future<void> addProduct({
     int minStockLevel = 10,
     DateTime? createdAt,
     double? costPrice,
+    String unit = 'piece',
   }) async {
     if (!_isFirebaseAvailable) {
       AppConfig.log('⚠️ Firebase not available, product saved locally only');
@@ -967,6 +968,7 @@ Future<void> addProduct({
           'barcode': barcode,
           'min_stock_level': minStockLevel,
           'cost_price': costPrice,
+          'unit': unit,
           // ⭐ created_at ثابت من وقت الإنشاء (مستقر عند إعادة الرفع)،
           // وupdated_at هو Timestamp موحّد لدعم السحب التزايدي.
           'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
@@ -1014,6 +1016,7 @@ Future<void> addProduct({
               'barcode': product['barcode'],
               'min_stock_level': product['minStockLevel'] ?? 10,
               'cost_price': product['costPrice'],
+              'unit': product['unit'] ?? 'piece',
               'created_at': product['createdAt']?.toIso8601String() ?? DateTime.now().toIso8601String(),
               'updated_at': FieldValue.serverTimestamp(),
             },
@@ -1038,6 +1041,7 @@ Future<void> addProduct({
     String? barcode,
     int? minStockLevel,
     double? costPrice,
+    String? unit,
   }) async {
     if (!_isFirebaseAvailable) {
       AppConfig.log('⚠️ Firebase not available, product updated locally only');
@@ -1053,6 +1057,7 @@ Future<void> addProduct({
         'description': description,
         'barcode': barcode,
         'cost_price': costPrice,
+        if (unit != null) 'unit': unit,
         'updated_at': FieldValue.serverTimestamp(),
       };
       if (minStockLevel != null) {

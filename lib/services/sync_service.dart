@@ -493,6 +493,7 @@ class SyncService {
           'barcode': product.barcode,
           'minStockLevel': product.minStockLevel,
           'costPrice': product.costPrice,
+          'unit': product.unit,
           'createdAt': product.createdAt,
         }).toList();
 
@@ -518,6 +519,7 @@ class SyncService {
               barcode: product.barcode,
               minStockLevel: product.minStockLevel,
               costPrice: product.costPrice,
+              unit: product.unit,
               createdAt: product.createdAt,
             );
             await _db.markProductAsSynced(product.id);
@@ -878,6 +880,7 @@ class SyncService {
             minStockLevel: serverProduct.minStockLevel,
             costPrice: serverProduct.costPrice,
             isSynced: true,
+            unit: serverProduct.unit,
           );
           addedCount++;
         } else if (localProduct.isSynced) {
@@ -894,6 +897,7 @@ class SyncService {
               barcode: serverProduct.barcode,
               minStockLevel: serverProduct.minStockLevel,
               costPrice: serverProduct.costPrice,
+              unit: serverProduct.unit,
             );
             await _db.markProductAsSynced(localProduct.id);
             updatedCount++;
@@ -1313,6 +1317,7 @@ class SyncService {
     String? barcode,
     int minStockLevel = 10,
     double? costPrice,
+    String unit = 'piece',
   }) async {
     final userId = _db.getUserId();
     if (userId == null) throw Exception(LocalizationHelper.authUserNotAuthenticated);
@@ -1332,6 +1337,7 @@ class SyncService {
       minStockLevel: minStockLevel,
       costPrice: costPrice,
       isSynced: false,
+      unit: unit,
     );
 
     _notifyDataChanged();
@@ -1349,6 +1355,7 @@ class SyncService {
           barcode: barcode,
           minStockLevel: minStockLevel,
           costPrice: costPrice,
+          unit: unit,
           createdAt: _db.getProductById(productId)?.createdAt,
         );
         await _db.markProductAsSynced(productId);
@@ -1469,6 +1476,7 @@ class SyncService {
     String? barcode,
     int? minStockLevel,
     double? costPrice,
+    String? unit,
   }) async {
     // ⭐ أولاً: تحديث في Hive محلياً (isSynced = false)
     await _db.updateProduct(
@@ -1481,6 +1489,7 @@ class SyncService {
       barcode: barcode,
       minStockLevel: minStockLevel,
       costPrice: costPrice,
+      unit: unit,
     );
 
     _notifyDataChanged();
@@ -1498,6 +1507,7 @@ class SyncService {
           barcode: barcode,
           minStockLevel: minStockLevel,
           costPrice: costPrice,
+          unit: unit,
         );
         await _db.markProductAsSynced(id);
         AppConfig.log('✅ Product updated in Firebase: $name');

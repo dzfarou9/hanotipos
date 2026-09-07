@@ -345,6 +345,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           barcode: data.barcode,
           minStockLevel: data.minStockLevel,
           costPrice: data.costPrice,
+          unit: data.unit,
         );
         _showSnack(AppColors.success, LocalizationHelper.posProductAdded);
       } else {
@@ -357,6 +358,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           barcode: data.barcode,
           minStockLevel: data.minStockLevel,
           costPrice: data.costPrice,
+          unit: data.unit,
         );
         _showSnack(AppColors.success, LocalizationHelper.posProductUpdated);
       }

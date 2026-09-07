@@ -592,6 +592,7 @@ class DatabaseService {
     int minStockLevel = 10,
     bool isSynced = false,
     double? costPrice,
+    String unit = 'piece',
   }) async {
     final product = Product(
       id: id,
@@ -607,6 +608,7 @@ class DatabaseService {
       userId: userId,
       minStockLevel: minStockLevel,
       costPrice: costPrice,
+      unit: unit,
     );
     await _productsBox.put(product.id, product);
     _addProductToBarcodeIndex(product);
@@ -627,6 +629,7 @@ class DatabaseService {
     int minStockLevel = 10,
     bool isSynced = false,
     double? costPrice,
+    String unit = 'piece',
   }) async {
     final product = Product(
       id: _uuid.v4(),
@@ -642,6 +645,7 @@ class DatabaseService {
       userId: userId,
       minStockLevel: minStockLevel,
       costPrice: costPrice,
+      unit: unit,
     );
     await _productsBox.put(product.id, product);
     _addProductToBarcodeIndex(product);
@@ -661,6 +665,7 @@ class DatabaseService {
     String? barcode,
     int? minStockLevel,
     double? costPrice,
+    String? unit,
   }) async {
     final product = _productsBox.get(id);
     if (product != null) {
@@ -679,6 +684,9 @@ class DatabaseService {
         product.minStockLevel = minStockLevel;
       }
       product.costPrice = costPrice;
+      if (unit != null) {
+        product.unit = unit;
+      }
       product.updatedAt = DateTime.now();
       product.isSynced = false; // ⭐ تعيين isSynced = false عند التحديث
       await _productsBox.put(product.id, product);
