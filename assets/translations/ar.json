@@ -505,6 +505,7 @@
     "cannot_return": "لا يمكن إرجاع منتجات من هذه المبيعة",
     "all_returned": "جميع المنتجات تم إرجاعها مسبقاً",
     "available_quantity": "الكمية المتاحة",
+    "return_qty_hint": "الكمية المرتجعة",
     "return_total": "إجمالي المرتجع",
     "remaining_amount": "المبلغ المتبقي",
     "status": "الحالة",

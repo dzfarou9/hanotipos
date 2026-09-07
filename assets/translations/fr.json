@@ -505,6 +505,7 @@
     "cannot_return": "Impossible de retourner les produits de cette vente",
     "all_returned": "Tous les produits ont déjà été retournés",
     "available_quantity": "Quantité disponible",
+    "return_qty_hint": "Quantité retournée",
     "return_total": "Total du retour",
     "remaining_amount": "Montant restant",
     "status": "Statut",

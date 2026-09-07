@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
@@ -16,6 +17,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/design_tokens.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/quantity_format.dart';
 import '../widgets/app_snackbar.dart';
 import '../helpers/sale_search_helper.dart';
 
@@ -201,6 +203,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
       return;
     }
 
+    // ⭐ controllers حقول الكمية للعناصر الموزونة (تُحرَّر بعد إغلاق الحوار)
+    final returnQtyControllers = <String, TextEditingController>{};
+
     final selectedItems = await showDialog<List<SaleItem>>(
       context: context,
       builder: (ctx) => _buildReturnDialog(
@@ -211,8 +216,14 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
         accentColor,
         titleColor,
         bodyColor,
+        returnQtyControllers,
       ),
     );
+
+    // ⭐ تحرير controllers بعد إغلاق الحوار
+    for (var c in returnQtyControllers.values) {
+      c.dispose();
+    }
 
     if (selectedItems == null || selectedItems.isEmpty) {
       resetGuard();
@@ -337,7 +348,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
       print('✅ Sale updated with return: ${sale.id}');
 
       // ⭐ حساب الكميات الجديدة مرة واحدة قبل التحديث المحلي
-      final quantityUpdates = <String, int>{};
+      final quantityUpdates = <String, double>{};
       for (var item in selectedItems) {
         final product = _db.getProductById(item.productId);
         if (product != null) {
@@ -436,11 +447,28 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     Color accentColor,
     Color titleColor,
     Color bodyColor,
+    Map<String, TextEditingController> qtyControllers,
   ) {
-    final Map<String, bool> selectedMap = {};
+    // ⭐ الكمية المختارة لكل عنصر (افتراضياً الكمية الكاملة المتاحة)
+    final Map<String, double> selectedQtyMap = {};
+    // ⭐ المنتجات الموزونة (kg/litre) تسمح بإدخال كمية مرتجعة جزئية
+    final Set<String> weightedItemIds = {};
+    final Set<String> qtyErrorIds = {};
     for (var item in availableItems) {
-      selectedMap[item.id] = true;
+      selectedQtyMap[item.id] = item.quantity;
+      final product = _db.getProductById(item.productId);
+      if (product?.isWeighted == true) {
+        weightedItemIds.add(item.id);
+        // ⭐ قد يُعاد بناء الحوار؛ لا تُنشئ controller جديداً لموجود
+        if (!qtyControllers.containsKey(item.id)) {
+          qtyControllers[item.id] = TextEditingController(
+              text: QuantityFormat.quantity(item.quantity));
+        }
+      }
     }
+
+    String qtyErrorText(SaleItem item) =>
+        '${'sales_history.available_quantity'.tr()}: ${QuantityFormat.quantity(item.quantity)}';
 
     return StatefulBuilder(
       builder: (ctx, setStateDialog) {
@@ -489,7 +517,8 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final item = availableItems[i];
-                      final isSelected = selectedMap[item.id] ?? true;
+                      final isWeighted = weightedItemIds.contains(item.id);
+                      final isSelected = (selectedQtyMap[item.id] ?? 0) > 0;
 
                       return Container(
                         padding: const EdgeInsets.all(12),
@@ -517,7 +546,15 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                 value: isSelected,
                                 onChanged: (value) {
                                   setStateDialog(() {
-                                    selectedMap[item.id] = value ?? false;
+                                    // ⭐ التبديل بين الكمية الكاملة والصفر
+                                    selectedQtyMap[item.id] =
+                                        (value ?? false) ? item.quantity : 0.0;
+                                    if (isWeighted) {
+                                      qtyControllers[item.id]?.text =
+                                          QuantityFormat.quantity(
+                                              selectedQtyMap[item.id] ?? 0.0);
+                                    }
+                                    qtyErrorIds.remove(item.id);
                                   });
                                 },
                                 activeColor: accentColor,
@@ -543,7 +580,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          '${'sales_history.available_quantity'.tr()}: ${item.quantity}',
+                                          '${'sales_history.available_quantity'.tr()}: ${QuantityFormat.quantity(item.quantity)}',
                                           style: AppTextStyles.caption(
                                               color: bodyColor, fontSize: 10),
                                           maxLines: 1,
@@ -565,11 +602,67 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                 ],
                               ),
                             ),
+                            if (isWeighted) ...[
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 90,
+                                child: TextField(
+                                  key: Key('return_qty_${item.id}'),
+                                  controller: qtyControllers[item.id],
+                                  keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  inputFormatters: [
+                                    TextInputFormatter.withFunction(
+                                      (oldValue, newValue) {
+                                        final t = newValue.text;
+                                        final dotCount =
+                                            '.'.allMatches(t).length;
+                                        final ok = dotCount <= 1 &&
+                                            RegExp(r'^\d*\.?\d{0,3}$')
+                                                .hasMatch(t);
+                                        return ok ? newValue : oldValue;
+                                      },
+                                    ),
+                                  ],
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.bodyMedium(
+                                      color: titleColor),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    hintText:
+                                        'sales_history.return_qty_hint'.tr(),
+                                    hintStyle: AppTextStyles.caption(
+                                        color: AppColors.grey400, fontSize: 9),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 8),
+                                    errorText: qtyErrorIds.contains(item.id)
+                                        ? qtyErrorText(item)
+                                        : null,
+                                    errorStyle: AppTextStyles.caption(
+                                        color: AppColors.error, fontSize: 9),
+                                    errorMaxLines: 2,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          DesignTokens.radiusSm),
+                                    ),
+                                  ),
+                                  onChanged: (text) {
+                                    final qty =
+                                        QuantityFormat.round(
+                                            double.tryParse(text) ?? 0.0);
+                                    setStateDialog(() {
+                                      selectedQtyMap[item.id] = qty;
+                                      qtyErrorIds.remove(item.id);
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 65,
                               child: Text(
-                                '${item.subtotal.toStringAsFixed(2)}',
+                                item.subtotal.toStringAsFixed(2),
                                 style: AppTextStyles.bodyMedium(
                                     color: accentColor, fontSize: 12),
                                 maxLines: 1,
@@ -609,9 +702,31 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       flex: 2,
                       child: ElevatedButton(
                         onPressed: () {
-                          final selected = availableItems
-                              .where((item) => selectedMap[item.id] == true)
-                              .toList();
+                          // ⭐ بناء العناصر المختارة مع التحقق من الكميات
+                          final selected = <SaleItem>[];
+                          var hasError = false;
+                          for (var item in availableItems) {
+                            final qty = QuantityFormat.round(
+                                selectedQtyMap[item.id] ?? 0.0);
+                            if (QuantityFormat.isZeroQty(qty)) continue;
+                            if (QuantityFormat.exceedsQty(qty, item.quantity)) {
+                              qtyErrorIds.add(item.id);
+                              hasError = true;
+                              continue;
+                            }
+                            selected.add(SaleItem(
+                              id: item.id,
+                              productId: item.productId,
+                              productName: item.productName,
+                              price: item.price,
+                              quantity: qty,
+                              subtotal: item.price * qty,
+                            ));
+                          }
+                          if (hasError) {
+                            setStateDialog(() {});
+                            return;
+                          }
                           Navigator.pop(ctx, selected);
                         },
                         style: ElevatedButton.styleFrom(
