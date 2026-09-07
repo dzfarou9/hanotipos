@@ -798,5 +798,6 @@
     "law_body": "Ces Conditions sont régies et interprétées conformément aux lois de la République algérienne démocratique et populaire. Tout litige découlant de ces Conditions relève de la juridiction exclusive des tribunaux compétents d'Algérie.",
     "contact_title": "Contactez-nous",
     "contact_body": "Si vous avez des questions sur ces Conditions, veuillez nous contacter via les options d'assistance disponibles dans l'Application. Nous répondrons dès que raisonnablement possible."
-  }
+  },
+  "unit": { "piece": "pc", "kg": "kg", "liter": "L" }
 }

@@ -798,5 +798,6 @@
     "law_body": "These Terms are governed by and construed in accordance with the laws of the People's Democratic Republic of Algeria. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the competent courts of Algeria.",
     "contact_title": "Contact Us",
     "contact_body": "If you have any questions about these Terms, please contact us through the support options available in the App. We will respond as soon as reasonably possible."
-  }
+  },
+  "unit": { "piece": "pc", "kg": "kg", "liter": "L" }
 }

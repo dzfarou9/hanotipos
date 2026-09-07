@@ -752,6 +752,10 @@ class LocalizationHelper {
     return 'dates.week_short'.tr(namedArgs: {'number': '$weekNumber'});
   }
 
+  // ==================== الوحدات ====================
+  static String unitLabel(String unit) =>
+      'unit.${unit == 'kg' ? 'kg' : unit == 'litre' ? 'liter' : 'piece'}'.tr();
+
   // ⭐ مفاتيح مؤقتة للمشتريات/الموردين (تُستبدل بمفاتيح .tr() في Task 7)
   static String get purchasesEmptyCart => 'purchases.emptyCart'.tr();
   static String get purchasesOriginalNotFound => 'purchases.originalNotFound'.tr();
