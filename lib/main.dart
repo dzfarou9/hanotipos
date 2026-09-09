@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_core/firebase_core.dart' hide FirebaseService;
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:window_manager/window_manager.dart';
 import 'firebase_options.dart';
 import 'config/app_config.dart';
 import 'theme/app_theme.dart';
@@ -18,10 +19,28 @@ import 'services/remote_config_service.dart';
 import 'services/sync_service.dart';
 import 'helpers/localization_helper.dart';
 import 'helpers/direction_helper.dart';
+import 'helpers/platform_helper.dart';
+import 'services/barcode_input_service.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ⭐ Windows: نافذة سطح مكتب + قارئ USB
+  if (PlatformHelper.isWindows) {
+    await windowManager.ensureInitialized();
+    const windowOptions = WindowOptions(
+      title: 'Hanoti',
+      size: Size(1200, 800),
+      minimumSize: Size(900, 640),
+      center: true,
+    );
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+    BarcodeInputService.instance.init();
+  }
 
   // ⭐ 1. التهيئة المحلية الفورية (Hive)
   await EasyLocalization.ensureInitialized();

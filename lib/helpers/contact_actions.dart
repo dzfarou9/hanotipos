@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 class ContactInfo {
   static const String email = 'hanotisupport@gmail.com';
   static const String whatsapp = '0799146862';
-  static const String website = 'https://hanoti.rf.gd';
+  static const String website = 'https://hanoti.online';
 
   /// رقم الواتساب بصيغة دولية للتوجيه إلى wa.me
   static const String whatsappInternational = '213799146862';
