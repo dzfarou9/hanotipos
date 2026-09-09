@@ -7,6 +7,9 @@ import 'firebase_service.dart';
 import 'remote_config_service.dart';
 import 'database_service.dart';
 import 'sync_service.dart';
+import '../helpers/platform_helper.dart';
+import 'local_auth_service.dart';
+import 'package:uuid/uuid.dart';
 import '../helpers/localization_helper.dart';
 
 class AuthService {
@@ -35,6 +38,9 @@ class AuthService {
     try {
       final userId = DatabaseService.instance.getUserId();
       if (userId == null) return false;
+
+      // ⭐ Windows: وضع محلي بلا Firebase — وجود userId كافٍ للجلسة
+      if (PlatformHelper.isWindows) return true;
 
       // currentUser لا يرمي استثناءً أبداً (يعيد null عند تعذر الوصول لـ Firebase)
       final user = FirebaseService().currentUser;
@@ -146,6 +152,11 @@ class AuthService {
       AppConfig.log('===== LOGIN STARTED =====');
       AppConfig.log('Phone: $phone');
 
+      // ⭐ Windows: تسجيل دخول محلي بلا Firebase
+      if (PlatformHelper.isWindows) {
+        return _localSignIn(phone: phone, password: password);
+      }
+
       final firebaseService = FirebaseService();
 
       // FirebaseService يترجم أكواد FirebaseAuthException إلى رسائل مترجمة
@@ -199,6 +210,24 @@ class AuthService {
   }) async {
     try {
       AppConfig.log('===== REGISTRATION STARTED =====');
+
+      // ⭐ Windows: إنشاء حساب محلي بلا Firebase
+      if (PlatformHelper.isWindows) {
+        final local = LocalAuthService();
+        if (await local.hasLocalAccount()) {
+          final ok = await local.verifyCredentials(
+            phone: phone,
+            password: password,
+          );
+          if (!ok) throw Exception(LocalizationHelper.authLoginError);
+          await _saveLocalSession(phone: phone);
+          return true;
+        }
+        await local.createLocalAccount(phone: phone, password: password);
+        await _saveLocalSession(phone: phone);
+        return true;
+      }
+
       if (kDebugMode) {
         AppConfig.log('Phone: $phone');
         AppConfig.log('Full Name: $fullName');
@@ -324,6 +353,9 @@ class AuthService {
         return false;
       }
 
+      // ⭐ Windows: وضع محلي — userId كافٍ
+      if (PlatformHelper.isWindows) return true;
+
       final user = FirebaseService().currentUser;
       if (user == null) {
         AppConfig.log('⚠️ No user in Firebase session');
@@ -360,5 +392,41 @@ class AuthService {
       AppConfig.logError('⚠️ Subscription info error', e);
       return null;
     }
+  }
+
+  /// ⭐ Windows: دخول محلي — أول استخدام ينشئ الحساب، ما بعده يتحقق.
+  Future<bool> _localSignIn({
+    required String phone,
+    required String password,
+  }) async {
+    final local = LocalAuthService();
+    if (!await local.hasLocalAccount()) {
+      await local.createLocalAccount(phone: phone, password: password);
+      await _saveLocalSession(phone: phone);
+      AppConfig.log('✅ Local account created (Windows)');
+      return true;
+    }
+    final ok = await local.verifyCredentials(phone: phone, password: password);
+    if (!ok) {
+      throw Exception(LocalizationHelper.authLoginError);
+    }
+    await _saveLocalSession(phone: phone);
+    return true;
+  }
+
+  /// ⭐ Windows: حفظ جلسة محلية (userId ثابت + تجربة 30 يوم بلا Firebase)
+  Future<void> _saveLocalSession({required String phone}) async {
+    final db = DatabaseService.instance;
+    final userId = await LocalAuthService().localUserId();
+    await db.saveUserData(
+      userId: userId ?? const Uuid().v4(),
+      phone: phone,
+      fullName: '',
+      storeName: '',
+    );
+    await db.saveSubscriptionEndDate(
+      DateTime.now().add(const Duration(days: 30)),
+    );
+    await db.saveSubscriptionActive(true);
   }
 }
