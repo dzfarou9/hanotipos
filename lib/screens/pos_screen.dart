@@ -14,10 +14,12 @@ import '../services/cart_service.dart';
 import '../services/sync_service.dart';
 import '../services/firebase_service.dart';
 import '../services/scanner_feedback_service.dart';
+import '../services/barcode_input_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/design_tokens.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/platform_helper.dart';
 import '../helpers/quantity_format.dart';
 import '../widgets/barcode_scanner_view.dart';
 import '../widgets/pos/checkout_confirmation_sheet.dart';
@@ -50,6 +52,9 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
 
   bool _isScannerVisible = false;
   bool _isProcessingBarcode = false;
+  StreamSubscription<String>? _usbScanSub;
+  bool _isUsbScanMode = false;
+  String? _lastUsbScan;
 
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -63,6 +68,7 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _usbScanSub?.cancel();
     _searchFocusNode.dispose();
     _searchController.dispose();
     _searchDebounce?.cancel();
@@ -155,6 +161,22 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
   // ==================== Scanner Methods ====================
 
   void _toggleScanner() {
+    if (PlatformHelper.isWindows) {
+      setState(() {
+        _isUsbScanMode = !_isUsbScanMode;
+        if (_isUsbScanMode) {
+          _usbScanSub = BarcodeInputService.instance.scans.listen((code) {
+            if (!mounted) return;
+            setState(() => _lastUsbScan = code);
+            _onBarcodeDetected(code);
+          });
+        } else {
+          _usbScanSub?.cancel();
+          _usbScanSub = null;
+        }
+      });
+      return;
+    }
     _dismissKeyboard();
     setState(() => _isScannerVisible = !_isScannerVisible);
   }
@@ -1499,11 +1521,37 @@ class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-            if (_isScannerVisible) ...[
-              BarcodeScannerView(
-                onBarcodeDetected: _onBarcodeDetected,
-                onClose: () => setState(() => _isScannerVisible = false),
-              ),
+            if (_isScannerVisible || _isUsbScanMode) ...[
+              if (_isUsbScanMode)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.qr_code_scanner_rounded),
+                      title: Text(
+                        _lastUsbScan == null
+                            ? 'USB scanner ready — scan a barcode'
+                            : 'Last scan: $_lastUsbScan',
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () {
+                          _usbScanSub?.cancel();
+                          _usbScanSub = null;
+                          setState(() {
+                            _isUsbScanMode = false;
+                            _lastUsbScan = null;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                )
+              else
+                BarcodeScannerView(
+                  onBarcodeDetected: _onBarcodeDetected,
+                  onClose: () => setState(() => _isScannerVisible = false),
+                ),
               const SizedBox(height: 8),
               Consumer<CartService>(
                 builder: (context, cart, child) => cart.isNotEmpty

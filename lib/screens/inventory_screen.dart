@@ -8,11 +8,13 @@ import '../services/sync_service.dart';
 import '../services/firebase_service.dart';
 import '../services/database_service.dart';
 import '../services/scanner_feedback_service.dart';
+import '../services/barcode_input_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/design_tokens.dart';
 import '../theme/screen_palette.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/platform_helper.dart';
 import '../helpers/quantity_format.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/barcode_scanner_view.dart';
@@ -45,6 +47,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   bool _isProcessingBarcode = false;
   bool _isLoading = true;
   bool _loadFailed = false;
+  StreamSubscription<String>? _usbScanSub;
+  bool _isUsbScanMode = false;
+  String? _lastUsbScan;
 
   int _loadGeneration = 0;
   Map<String, dynamic> _stats = const <String, dynamic>{};
@@ -81,6 +86,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   void dispose() {
+    _usbScanSub?.cancel();
     _reloadDebounce?.cancel();
     _scannerPaused.dispose();
     _searchFocusNode.dispose();
@@ -274,6 +280,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _toggleScanner() {
+    if (PlatformHelper.isWindows) {
+      setState(() {
+        _isUsbScanMode = !_isUsbScanMode;
+        if (_isUsbScanMode) {
+          _usbScanSub = BarcodeInputService.instance.scans.listen((code) {
+            if (!mounted) return;
+            setState(() => _lastUsbScan = code);
+            _processScannedProduct(code);
+          });
+        } else {
+          _usbScanSub?.cancel();
+          _usbScanSub = null;
+        }
+      });
+      return;
+    }
     setState(() => _isScannerVisible = !_isScannerVisible);
   }
 
@@ -499,16 +521,43 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     _buildStatsRow(isDark, accentColor, titleColor, bodyColor),
                     _buildSearchAndSort(
                         isDark, accentColor, titleColor, bodyColor),
-                    if (_isScannerVisible) ...[
-                      ValueListenableBuilder<bool>(
-                        valueListenable: _scannerPaused,
-                        builder: (context, paused, _) => BarcodeScannerView(
-                          onBarcodeDetected: _processScannedProduct,
-                          onClose: () =>
-                              setState(() => _isScannerVisible = false),
-                          paused: paused,
+                    if (_isScannerVisible || _isUsbScanMode) ...[
+                      if (_isUsbScanMode)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Card(
+                            child: ListTile(
+                              leading:
+                                  const Icon(Icons.qr_code_scanner_rounded),
+                              title: Text(
+                                _lastUsbScan == null
+                                    ? 'USB scanner ready — scan a barcode'
+                                    : 'Last scan: $_lastUsbScan',
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () {
+                                  _usbScanSub?.cancel();
+                                  _usbScanSub = null;
+                                  setState(() {
+                                    _isUsbScanMode = false;
+                                    _lastUsbScan = null;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _scannerPaused,
+                          builder: (context, paused, _) => BarcodeScannerView(
+                            onBarcodeDetected: _processScannedProduct,
+                            onClose: () =>
+                                setState(() => _isScannerVisible = false),
+                            paused: paused,
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 8),
                     ],
                     Expanded(

@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/screen_palette.dart';
 import '../helpers/localization_helper.dart';
+import '../helpers/platform_helper.dart';
 import '../widgets/app_snackbar.dart';
 import '../theme/design_tokens.dart';
 import '../helpers/login_rate_limiter.dart';
@@ -605,6 +606,16 @@ class _LoginScreenState extends State<LoginScreen>
                           child: OutlinedButton.icon(
                             onPressed: () {
                               HapticFeedback.lightImpact();
+                              if (PlatformHelper.isWindows) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                        'QR login is not available on Windows — use phone and password'),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (context) => LoginQrScanScreen(

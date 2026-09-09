@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:async';
 import '../helpers/quantity_format.dart';
+import '../helpers/platform_helper.dart';
 import '../models/purchase_model.dart';
 import '../models/supplier_model.dart';
 import '../models/product_model.dart';
 import '../services/database_service.dart';
 import '../services/sync_service.dart';
+import '../services/barcode_input_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/screen_palette.dart';
@@ -42,6 +45,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
 
   bool _scanning = false;
   bool _saving = false;
+  StreamSubscription<String>? _usbScanSub;
+  bool _isUsbScanMode = false;
+  String? _lastUsbScan;
 
   @override
   void initState() {
@@ -51,6 +57,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
 
   @override
   void dispose() {
+    _usbScanSub?.cancel();
     _noteController.dispose();
     _invoiceController.dispose();
     for (final line in _cartLines) {
@@ -146,6 +153,22 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   // ==================== مسح الباركود ====================
 
   void _openScanner() {
+    if (PlatformHelper.isWindows) {
+      setState(() {
+        _isUsbScanMode = !_isUsbScanMode;
+        if (_isUsbScanMode) {
+          _usbScanSub = BarcodeInputService.instance.scans.listen((code) {
+            if (!mounted) return;
+            setState(() => _lastUsbScan = code);
+            _onBarcodeDetected(code);
+          });
+        } else {
+          _usbScanSub?.cancel();
+          _usbScanSub = null;
+        }
+      });
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _scanning = true);
   }
@@ -488,6 +511,31 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               ),
             ],
           ),
+          if (_isUsbScanMode)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                child: ListTile(
+                  leading: const Icon(Icons.qr_code_scanner_rounded),
+                  title: Text(
+                    _lastUsbScan == null
+                        ? 'USB scanner ready — scan a barcode'
+                        : 'Last scan: $_lastUsbScan',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () {
+                      _usbScanSub?.cancel();
+                      _usbScanSub = null;
+                      setState(() {
+                        _isUsbScanMode = false;
+                        _lastUsbScan = null;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ),
           if (_scanning)
             Positioned.fill(
               child: Container(
