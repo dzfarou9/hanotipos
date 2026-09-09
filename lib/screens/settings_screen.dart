@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:easy_localization/easy_localization.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -25,6 +26,7 @@ import '../theme/design_tokens.dart';
 import '../theme/screen_palette.dart';
 import '../helpers/localization_helper.dart';
 import '../helpers/login_rate_limiter.dart';
+import '../helpers/platform_helper.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 
@@ -1271,7 +1273,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'qr_login_${phone.replaceAll(RegExp(r'[^0-9]'), '')}.png';
 
       bool saved = false;
-      if (!kIsWeb && !Platform.isIOS) {
+      if (PlatformHelper.isWindows) {
+        // ⭐ Windows: file_selector بدل flutter_file_dialog
+        final saveLocation = await getSaveLocation(
+          suggestedName: fileName,
+          acceptedTypeGroups: const [
+            XTypeGroup(label: 'PNG', extensions: ['png']),
+          ],
+        );
+        if (saveLocation != null) {
+          await File(saveLocation.path).writeAsBytes(bytes);
+          saved = true;
+        }
+      } else if (!kIsWeb && !Platform.isIOS) {
         try {
           final savedPath = await FlutterFileDialog.saveFile(
             params: SaveFileDialogParams(
