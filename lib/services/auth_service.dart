@@ -428,5 +428,7 @@ class AuthService {
       DateTime.now().add(const Duration(days: 30)),
     );
     await db.saveSubscriptionActive(true);
+    // ⭐ Windows: تحديث "آخر تحقق" ليظل مستند الاشتراك المحلي متماسكاً.
+    await db.saveSubscriptionLastVerified(DateTime.now());
   }
 }

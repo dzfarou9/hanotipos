@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.farou9" "\0"
-            VALUE "FileDescription", "pos_app" "\0"
+            VALUE "CompanyName", "Hanoti" "\0"
+            VALUE "FileDescription", "Hanoti POS" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "pos_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.farou9. All rights reserved." "\0"
+            VALUE "InternalName", "hanoti" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Hanoti. All rights reserved." "\0"
             VALUE "OriginalFilename", "pos_app.exe" "\0"
-            VALUE "ProductName", "pos_app" "\0"
+            VALUE "ProductName", "Hanoti POS" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -33,10 +33,7 @@ class DefaultFirebaseOptions {
           'it not supported by FlutLab yet, but you can add it manually',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'it not supported by FlutLab yet, but you can add it manually',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -67,5 +64,14 @@ class DefaultFirebaseOptions {
     storageBucket: 'hanoti-farou9.firebasestorage.app',
     measurementId:
         'G-X4HVLW572B', // ⭐ يمكنك إضافة Measurement ID من Firebase Console
+  );
+
+  // ⭐ خيارات ويندوز (تطبيق ويب مخصص: hanoti-windows — ويندوز يستخدم appId بنمط web)
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBgWDZ6aLYrevG6a_9Zws9mBKMqj6HLccE',
+    appId: '1:542408928460:web:5215bc543ee9f55364e669',
+    messagingSenderId: '542408928460',
+    projectId: 'hanoti-farou9',
+    storageBucket: 'hanoti-farou9.firebasestorage.app',
   );
 }

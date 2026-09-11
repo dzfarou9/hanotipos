@@ -20,6 +20,7 @@ import 'remote_config_service.dart';
 import 'telegram_notify_service.dart';
 import '../helpers/localization_helper.dart';
 import '../helpers/subscription_helper.dart';
+import '../helpers/platform_helper.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -2129,6 +2130,13 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
   /// الإيجار صالحاً (نشط + end_date مستقبلي + تحقق خلال 48 ساعة).
   Future<bool> isSubscriptionActive() async {
     final db = DatabaseService.instance;
+
+    // ⭐ Windows: وضع محلي بلا Firebase — الحكم على الاشتراك من تاريخ
+    // الانتهاء المحلي مباشرة (لا توجد جلسة سيرفر ليتحقق منها "الإيجار").
+    if (PlatformHelper.isWindows) {
+      return db.getSubscriptionActive() &&
+          isSubscriptionValid(db.getSubscriptionEndDate(), DateTime.now());
+    }
 
     if (!_isFirebaseAvailable) {
       AppConfig.log('⚠️ Firebase not available, applying Hive lease rule');

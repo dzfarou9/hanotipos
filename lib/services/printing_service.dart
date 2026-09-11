@@ -6,12 +6,14 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../helpers/localization_helper.dart';
+import '../helpers/platform_helper.dart';
 import '../models/cart_item_model.dart';
 import '../models/sale_model.dart';
 import 'auth_service.dart';
@@ -231,6 +233,20 @@ class PrintingService {
         customerPhone: customerPhone,
         paperSize: paperSize,
       );
+      return true;
+    }
+
+    // ⭐ Windows: نافذة "حفظ باسم" أصلية عبر file_selector
+    // (flutter_file_dialog لا يوفّر تنفيذاً على ويندوز).
+    if (!kIsWeb && PlatformHelper.isWindows) {
+      final location = await getSaveLocation(
+        suggestedName: 'invoice_${_shortId(saleId).toUpperCase()}.pdf',
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'PDF', extensions: ['pdf']),
+        ],
+      );
+      if (location == null) return false;
+      await File(location.path).writeAsBytes(pdfData);
       return true;
     }
 

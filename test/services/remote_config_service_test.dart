@@ -5,15 +5,15 @@ import 'package:pos_app/services/remote_config_service.dart';
 void main() {
   group('RemoteConfigService.parseTrialDays', () {
     test('parses valid numeric string', () {
-      expect(RemoteConfigService.parseTrialDays('14'), 14);
+      expect(RemoteConfigService.parseTrialDays('5'), 5);
     });
 
     test('parses integer value directly', () {
-      expect(RemoteConfigService.parseTrialDays(10), 10);
+      expect(RemoteConfigService.parseTrialDays(6), 6);
     });
 
-    test('clamps values above maximum to 14', () {
-      expect(RemoteConfigService.parseTrialDays('9999'), 14);
+    test('clamps values above maximum to 7', () {
+      expect(RemoteConfigService.parseTrialDays('9999'), 7);
     });
 
     test('clamps negative values to zero', () {

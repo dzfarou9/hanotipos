@@ -25,6 +25,34 @@ flutter run
 المتطلبات: Flutter SDK >= 3.1.0 ومشروع Firebase مهيأ (Email/Password Auth + Firestore).
 ملف `lib/firebase_options.dart` مضمّن؛ لإعادة التوليد لمشروع جديد استخدم `flutterfire configure`.
 
+## ويندوز (Windows Desktop)
+
+التطبيق يعمل على ويندوز بنمط **محلي أولاً (Local-First)**:
+
+- **المصادقة:** حساب محلي مشفّر (sha256 + ملح) عبر `flutter_secure_storage` — بدون Firebase Auth.
+- **الاشتراك:** يُحكم من تاريخ الانتهاء المحلي (تجربة 30 يوماً عند أول تسجيل دخول).
+- **الماسح:** قارئ USB (keyboard wedge) عبر `BarcodeInputService` بدل كاميرا/ML Kit؛ تسجيل الدخول بـ QR معطّل.
+- **المزامنة السحابية:** معطّلة على ويندوز حالياً (لا جلسة Firebase Auth) — البيانات محلية عبر Hive.
+
+المتطلبات:
+
+- Windows 10 أو أحدث
+- Flutter SDK مع تفعيل دعم ويندوز: `flutter config --enable-windows-desktop`
+- Visual Studio 2022 مع عبء عمل **Desktop development with C++**
+
+```bash
+flutter pub get
+flutter run -d windows
+```
+
+للإصدار النهائي:
+
+```bash
+flutter build windows --release
+```
+
+ملف Firebase الخاص بويندوز مسجّل باسم `hanoti-windows` (appId بنمط web) في `lib/firebase_options.dart`.
+
 ## الاختبارات والتحليل
 
 ```bash
