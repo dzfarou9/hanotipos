@@ -1,6 +1,7 @@
-// lib/screens/customer_detail_screen.dart
+﻿// lib/screens/customer_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import '../widgets/skeleton.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:pos_app/models/customer_model.dart';
 import 'package:pos_app/models/debt_transaction_model.dart';
@@ -329,7 +330,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         ],
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: accentColor))
+          ? const SkeletonLoadingView()
           : Column(
               children: [
                 _buildSummary(),
@@ -545,7 +546,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // ⭐ شريحة الحالة: لون توضيحي أعلى الرصيد
+                  // â­ Ø´Ø±ÙŠØ­Ø© Ø§Ù„Ø­Ø§Ù„Ø©: Ù„ÙˆÙ† ØªÙˆØ¶ÙŠØ­ÙŠ Ø£Ø¹Ù„Ù‰ Ø§Ù„Ø±ØµÙŠØ¯
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
@@ -662,7 +663,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
                   ],
                 ),
                 const SizedBox(height: 10),
-                // ⭐ شريط سداد: نسبة المدفوع من الدين
+                // â­ Ø´Ø±ÙŠØ· Ø³Ø¯Ø§Ø¯: Ù†Ø³Ø¨Ø© Ø§Ù„Ù…Ø¯ÙÙˆØ¹ Ù…Ù† Ø§Ù„Ø¯ÙŠÙ†
                 ClipRRect(
                   borderRadius: BorderRadius.circular(2),
                   child: LinearProgressIndicator(
@@ -727,7 +728,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         final tx = _transactions[i];
         final isDebt = tx.type == DebtTransactionType.debt;
         final isPayment = tx.type == DebtTransactionType.payment;
-        final sign = isDebt ? '+' : (isPayment ? '-' : '±');
+        final sign = isDebt ? '+' : (isPayment ? '-' : 'Â±');
         final color = isDebt ? context.errorColor : context.successColor;
 
         return Card(

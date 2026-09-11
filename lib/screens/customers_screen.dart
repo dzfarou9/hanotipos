@@ -1,8 +1,9 @@
-// lib/screens/customers_screen.dart
+﻿// lib/screens/customers_screen.dart
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../widgets/skeleton.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:pos_app/models/customer_model.dart';
 import 'package:pos_app/services/database_service.dart';
@@ -32,7 +33,7 @@ class _CustomersScreenState extends State<CustomersScreen>
   List<Customer> _filtered = [];
   bool _loading = true;
 
-  // ⭐ إحصائيات الملخص
+  // â­ Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„Ù…Ù„Ø®Øµ
   double _totalOwed = 0.0;
   int _openDebts = 0;
   static const String _currency = 'DZD';
@@ -71,10 +72,10 @@ class _CustomersScreenState extends State<CustomersScreen>
     try {
       final list = DatabaseService.instance.getAllCustomers();
 
-      // ⭐ إحصائيات الملخص تُحسب في مسحة واحدة على كل صفوف الدفتر:
-      // تجميع الصفوف حسب الزبون، دفتر لكل زبون، ثم:
-      //  - إجمالي المستحق = مجموع الأرصدة الموجبة (نفس منطق computeTotalDebt)
-      //  - الديون المفتوحة = عدّاد غير المسدد والمسدد جزئياً
+      // â­ Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„Ù…Ù„Ø®Øµ ØªÙØ­Ø³Ø¨ ÙÙŠ Ù…Ø³Ø­Ø© ÙˆØ§Ø­Ø¯Ø© Ø¹Ù„Ù‰ ÙƒÙ„ ØµÙÙˆÙ Ø§Ù„Ø¯ÙØªØ±:
+      // ØªØ¬Ù…ÙŠØ¹ Ø§Ù„ØµÙÙˆÙ Ø­Ø³Ø¨ Ø§Ù„Ø²Ø¨ÙˆÙ†ØŒ Ø¯ÙØªØ± Ù„ÙƒÙ„ Ø²Ø¨ÙˆÙ†ØŒ Ø«Ù…:
+      //  - Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…Ø³ØªØ­Ù‚ = Ù…Ø¬Ù…ÙˆØ¹ Ø§Ù„Ø£Ø±ØµØ¯Ø© Ø§Ù„Ù…ÙˆØ¬Ø¨Ø© (Ù†ÙØ³ Ù…Ù†Ø·Ù‚ computeTotalDebt)
+      //  - Ø§Ù„Ø¯ÙŠÙˆÙ† Ø§Ù„Ù…ÙØªÙˆØ­Ø© = Ø¹Ø¯Ù‘Ø§Ø¯ ØºÙŠØ± Ø§Ù„Ù…Ø³Ø¯Ø¯ ÙˆØ§Ù„Ù…Ø³Ø¯Ø¯ Ø¬Ø²Ø¦ÙŠØ§Ù‹
       final allRows = DatabaseService.instance.getAllDebtTransactions();
       final byCustomer = <String, List<DebtTransaction>>{};
       for (final row in allRows) {
@@ -317,7 +318,7 @@ class _CustomersScreenState extends State<CustomersScreen>
         child: const Icon(Icons.add_rounded),
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: accentColor))
+          ? const SkeletonLoadingView()
           : Column(
               children: [
                 Padding(
@@ -444,8 +445,8 @@ class _CustomersScreenState extends State<CustomersScreen>
     );
   }
 
-  // ⭐ بطاقة الملخص: تدرج زمردي بثلاث درجات + حلقة زخرفية، بنفس لغة بطاقة
-  // الترحيب في لوحة التحكم. الإيراد الكبير بعدّاد متحرك ولوحتان زجاجيتان.
+  // â­ Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ù…Ù„Ø®Øµ: ØªØ¯Ø±Ø¬ Ø²Ù…Ø±Ø¯ÙŠ Ø¨Ø«Ù„Ø§Ø« Ø¯Ø±Ø¬Ø§Øª + Ø­Ù„Ù‚Ø© Ø²Ø®Ø±ÙÙŠØ©ØŒ Ø¨Ù†ÙØ³ Ù„ØºØ© Ø¨Ø·Ø§Ù‚Ø©
+  // Ø§Ù„ØªØ±Ø­ÙŠØ¨ ÙÙŠ Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ…. Ø§Ù„Ø¥ÙŠØ±Ø§Ø¯ Ø§Ù„ÙƒØ¨ÙŠØ± Ø¨Ø¹Ø¯Ù‘Ø§Ø¯ Ù…ØªØ­Ø±Ùƒ ÙˆÙ„ÙˆØ­ØªØ§Ù† Ø²Ø¬Ø§Ø¬ÙŠØªØ§Ù†.
   Widget _buildSummaryCard(bool isDark, Color accentColor) {
     final onCard = isDark ? AppColors.textDarkPrimary : AppColors.white;
     final onCardSecondary =

@@ -1,7 +1,8 @@
-// lib/screens/purchases_history_screen.dart
+﻿// lib/screens/purchases_history_screen.dart
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../widgets/skeleton.dart';
 import '../models/purchase_model.dart';
 import '../services/database_service.dart';
 import '../services/sync_service.dart';
@@ -16,8 +17,8 @@ import '../widgets/empty_state.dart';
 import '../widgets/status_chip.dart';
 import 'supplier_return_screen.dart';
 
-/// سجل المشتريات: قائمة عمليات الشراء والمرتجعات مع التفاصيل والحذف
-/// ومدخل الإرجاع للمورد.
+/// Ø³Ø¬Ù„ Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª: Ù‚Ø§Ø¦Ù…Ø© Ø¹Ù…Ù„ÙŠØ§Øª Ø§Ù„Ø´Ø±Ø§Ø¡ ÙˆØ§Ù„Ù…Ø±ØªØ¬Ø¹Ø§Øª Ù…Ø¹ Ø§Ù„ØªÙØ§ØµÙŠÙ„ ÙˆØ§Ù„Ø­Ø°Ù
+/// ÙˆÙ…Ø¯Ø®Ù„ Ø§Ù„Ø¥Ø±Ø¬Ø§Ø¹ Ù„Ù„Ù…ÙˆØ±Ø¯.
 class PurchasesHistoryScreen extends StatefulWidget {
   const PurchasesHistoryScreen({super.key, this.initialSupplierId});
 
@@ -29,8 +30,8 @@ class PurchasesHistoryScreen extends StatefulWidget {
 }
 
 class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
-  // بنفسجي المرتجع هو نفس لون «مرتجع لمورد» في حركات المخزون سابقاً.
-  // ⭐ تركوازي الثانوية: يميز شارة «شراء» عن أخضر الهوية الذي صار قريباً منها
+  // Ø¨Ù†ÙØ³Ø¬ÙŠ Ø§Ù„Ù…Ø±ØªØ¬Ø¹ Ù‡Ùˆ Ù†ÙØ³ Ù„ÙˆÙ† Â«Ù…Ø±ØªØ¬Ø¹ Ù„Ù…ÙˆØ±Ø¯Â» ÙÙŠ Ø­Ø±ÙƒØ§Øª Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø³Ø§Ø¨Ù‚Ø§Ù‹.
+  // â­ ØªØ±ÙƒÙˆØ§Ø²ÙŠ Ø§Ù„Ø«Ø§Ù†ÙˆÙŠØ©: ÙŠÙ…ÙŠØ² Ø´Ø§Ø±Ø© Â«Ø´Ø±Ø§Ø¡Â» Ø¹Ù† Ø£Ø®Ø¶Ø± Ø§Ù„Ù‡ÙˆÙŠØ© Ø§Ù„Ø°ÙŠ ØµØ§Ø± Ù‚Ø±ÙŠØ¨Ø§Ù‹ Ù…Ù†Ù‡Ø§
   static const Color _purchaseColor = AppColors.secondary;
   static const Color _returnColor = Color(0xFF8B5CF6);
 
@@ -54,7 +55,7 @@ class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
     super.dispose();
   }
 
-  // بحث بالمورد أو رقم الفاتورة
+  // Ø¨Ø­Ø« Ø¨Ø§Ù„Ù…ÙˆØ±Ø¯ Ø£Ùˆ Ø±Ù‚Ù… Ø§Ù„ÙØ§ØªÙˆØ±Ø©
   List<Purchase> get _filtered {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return _purchases;
@@ -110,8 +111,8 @@ class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
     AppSnackBar.show(context, message, type: type);
   }
 
-  // ⭐ حذف العملية: إغلاق الشيت أولاً ثم تأكيد ثم تنفيذ الحذف.
-  // فشل سياسة المخزون يظهر كـ SnackBar دون انهيار.
+  // â­ Ø­Ø°Ù Ø§Ù„Ø¹Ù…Ù„ÙŠØ©: Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ø´ÙŠØª Ø£ÙˆÙ„Ø§Ù‹ Ø«Ù… ØªØ£ÙƒÙŠØ¯ Ø«Ù… ØªÙ†ÙÙŠØ° Ø§Ù„Ø­Ø°Ù.
+  // ÙØ´Ù„ Ø³ÙŠØ§Ø³Ø© Ø§Ù„Ù…Ø®Ø²ÙˆÙ† ÙŠØ¸Ù‡Ø± ÙƒÙ€ SnackBar Ø¯ÙˆÙ† Ø§Ù†Ù‡ÙŠØ§Ø±.
   Future<void> _confirmDelete(Purchase purchase) async {
     final isDark = context.isDark;
     final confirmed = await showDialog<bool>(
@@ -330,7 +331,7 @@ class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              '${QuantityFormat.quantity(item.quantity)} × ${item.costPrice.toStringAsFixed(2)}',
+                              '${QuantityFormat.quantity(item.quantity)} Ã— ${item.costPrice.toStringAsFixed(2)}',
                               style:
                                   AppTextStyles.caption(color: bodyColor),
                               textAlign: TextAlign.center,
@@ -352,7 +353,7 @@ class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // زر الإرجاع يظهر فقط للأصلية القابلة للإرجاع
+              // Ø²Ø± Ø§Ù„Ø¥Ø±Ø¬Ø§Ø¹ ÙŠØ¸Ù‡Ø± ÙÙ‚Ø· Ù„Ù„Ø£ØµÙ„ÙŠØ© Ø§Ù„Ù‚Ø§Ø¨Ù„Ø© Ù„Ù„Ø¥Ø±Ø¬Ø§Ø¹
               if (purchase.canBeReturned)
                 SizedBox(
                   width: double.infinity,
@@ -432,7 +433,7 @@ class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
     );
   }
 
-  // ⭐ تاريخ نسبي: "اليوم" / "أمس" / dd/MM/yyyy.
+  // â­ ØªØ§Ø±ÙŠØ® Ù†Ø³Ø¨ÙŠ: "Ø§Ù„ÙŠÙˆÙ…" / "Ø£Ù…Ø³" / dd/MM/yyyy.
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -474,7 +475,7 @@ class _PurchasesHistoryScreenState extends State<PurchasesHistoryScreen> {
         ),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: accentColor))
+          ? const SkeletonLoadingView()
           : RefreshIndicator(
               onRefresh: _load,
               color: accentColor,

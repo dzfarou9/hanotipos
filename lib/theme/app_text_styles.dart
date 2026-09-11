@@ -101,15 +101,29 @@ class AppTextStyles {
       );
 
   // ==================== Numbers ====================
+  // ⭐ أرقام جدولية (tabular figures): عرض كل رقم متساوٍ فتصطف الأعمدة
+  // المالية (الأسعار، الإجماليات، الكميات) عمودياً في القوائم والتقارير.
+  static const List<FontFeature> _tabular = [FontFeature.tabularFigures()];
+
   static TextStyle statNumber({Color? color}) => _base(
         fontSize: 28, fontWeight: FontWeight.w700,
         color: color, letterSpacing: -0.5,
-      );
+      ).copyWith(fontFeatures: _tabular);
 
   static TextStyle priceLarge({Color? color}) => _base(
         fontSize: 24, fontWeight: FontWeight.w700,
         color: color ?? AppColors.primary, letterSpacing: -0.3,
-      );
+      ).copyWith(fontFeatures: _tabular);
+
+  /// أرقام مضمنة في نص عادي (سعر صف، كمية، إجمالي) — بنفس حجم الجسم.
+  static TextStyle numeric(
+          {Color? color, double fontSize = 14, FontWeight fontWeight = FontWeight.w600}) =>
+      _base(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        height: 1.3,
+      ).copyWith(fontFeatures: _tabular);
 
   // ==================== Dialog Title Helper ====================
   /// Returns appropriate text color for dialog titles based on brightness

@@ -1,6 +1,7 @@
-// lib/screens/suppliers_screen.dart
+﻿// lib/screens/suppliers_screen.dart
 
 import 'package:flutter/material.dart';
+import '../widgets/skeleton.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../models/supplier_model.dart';
 import '../services/database_service.dart';
@@ -29,7 +30,7 @@ class _SuppliersScreenState extends State<SuppliersScreen>
   List<Supplier> _filtered = [];
   bool _loading = true;
 
-  // ⭐ إحصائيات الملخص + عدّاد مشتريات كل مورد
+  // â­ Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„Ù…Ù„Ø®Øµ + Ø¹Ø¯Ù‘Ø§Ø¯ Ù…Ø´ØªØ±ÙŠØ§Øª ÙƒÙ„ Ù…ÙˆØ±Ø¯
   int _purchaseCount = 0;
   double _totalSpent = 0.0;
   Map<String, int> _purchasesBySupplier = {};
@@ -63,7 +64,7 @@ class _SuppliersScreenState extends State<SuppliersScreen>
     try {
       final list = await _sync.getSuppliers();
 
-      // ⭐ إحصائيات المشتريات: مسحة واحدة، صافي المرتجعات مخصوم
+      // â­ Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª: Ù…Ø³Ø­Ø© ÙˆØ§Ø­Ø¯Ø©ØŒ ØµØ§ÙÙŠ Ø§Ù„Ù…Ø±ØªØ¬Ø¹Ø§Øª Ù…Ø®ØµÙˆÙ…
       final purchases = DatabaseService.instance.getAllPurchases();
       final bySupplier = <String, int>{};
       double totalSpent = 0.0;
@@ -335,7 +336,7 @@ class _SuppliersScreenState extends State<SuppliersScreen>
         child: const Icon(Icons.add_rounded),
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: accentColor))
+          ? const SkeletonLoadingView()
           : Column(
               children: [
                 Padding(
@@ -462,8 +463,8 @@ class _SuppliersScreenState extends State<SuppliersScreen>
     );
   }
 
-  // ⭐ بطاقة الملخص: نفس لغة بطاقة الزبائن والترحيب — تدرج زمردي ثلاثي
-  // + حلقة زخرفية + لوحتان زجاجيتان (عدد المشتريات وقيمتها).
+  // â­ Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ù…Ù„Ø®Øµ: Ù†ÙØ³ Ù„ØºØ© Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ø²Ø¨Ø§Ø¦Ù† ÙˆØ§Ù„ØªØ±Ø­ÙŠØ¨ â€” ØªØ¯Ø±Ø¬ Ø²Ù…Ø±Ø¯ÙŠ Ø«Ù„Ø§Ø«ÙŠ
+  // + Ø­Ù„Ù‚Ø© Ø²Ø®Ø±ÙÙŠØ© + Ù„ÙˆØ­ØªØ§Ù† Ø²Ø¬Ø§Ø¬ÙŠØªØ§Ù† (Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª ÙˆÙ‚ÙŠÙ…ØªÙ‡Ø§).
   Widget _buildSummaryCard(bool isDark, Color accentColor) {
     final onCard = isDark ? AppColors.textDarkPrimary : AppColors.white;
     final onCardSecondary =

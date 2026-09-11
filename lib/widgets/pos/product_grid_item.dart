@@ -27,66 +27,75 @@ class POSProductGridItem extends StatelessWidget {
     final isOutOfStock = QuantityFormat.isZeroQty(product.quantity);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = isDark ? AppColors.neonOrange : AppColors.primary;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isOutOfStock
-                ? AppColors.errorLight
-                : AppColors.grey200.withValues(alpha:0.4),
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: isOutOfStock ? null : onTap,
+        borderRadius: BorderRadius.circular(14),
+        hoverColor: accentColor.withValues(alpha: 0.06),
+        splashColor: accentColor.withValues(alpha: 0.12),
+        highlightColor: accentColor.withValues(alpha: 0.08),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isOutOfStock
+                  ? AppColors.errorLight
+                  : AppColors.grey200.withValues(alpha: 0.4),
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isOutOfStock
-                    ? AppColors.errorLight
-                    : isLowStock
-                        ? AppColors.warningLight
-                        : accentColor.withValues(alpha:0.1),
-                borderRadius: BorderRadius.circular(10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isOutOfStock
+                      ? AppColors.errorLight
+                      : isLowStock
+                          ? AppColors.warningLight
+                          : accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.inventory_2_rounded,
+                  color: isOutOfStock
+                      ? AppColors.error
+                      : isLowStock
+                          ? AppColors.warning
+                          : accentColor,
+                  size: 20,
+                ),
               ),
-              child: Icon(
-                Icons.inventory_2_rounded,
-                color: isOutOfStock
-                    ? AppColors.error
-                    : isLowStock
-                        ? AppColors.warning
-                        : accentColor,
-                size: 20,
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  product.name,
+                  style: AppTextStyles.bodyMedium().copyWith(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                product.name,
-                style: AppTextStyles.bodyMedium().copyWith(fontSize: 12),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              '${product.price.toStringAsFixed(2)} $currency',
-              style: AppTextStyles.bodyLarge(color: accentColor)
-                  .copyWith(fontSize: 13),
-            ),
-            if (isOutOfStock)
+              const SizedBox(height: 3),
               Text(
-                LocalizationHelper.posOutOfStock,
-                style:
-                    AppTextStyles.caption(color: AppColors.error, fontSize: 11),
+                '${product.price.toStringAsFixed(2)} $currency',
+                style: AppTextStyles.numeric(
+                  color: accentColor,
+                  fontSize: 13,
+                ),
               ),
-          ],
+              if (isOutOfStock)
+                Text(
+                  LocalizationHelper.posOutOfStock,
+                  style: AppTextStyles.caption(
+                      color: AppColors.error, fontSize: 11),
+                ),
+            ],
+          ),
         ),
       ),
     );
