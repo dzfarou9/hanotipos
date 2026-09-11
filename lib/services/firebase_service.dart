@@ -2131,16 +2131,19 @@ Future<List<InventoryMovement>> getMovements({DateTime? lastSync}) async {
   Future<bool> isSubscriptionActive() async {
     final db = DatabaseService.instance;
 
-    // ⭐ Windows: وضع محلي بلا Firebase — الحكم على الاشتراك من تاريخ
-    // الانتهاء المحلي مباشرة (لا توجد جلسة سيرفر ليتحقق منها "الإيجار").
-    if (PlatformHelper.isWindows) {
-      return db.getSubscriptionActive() &&
-          isSubscriptionValid(db.getSubscriptionEndDate(), DateTime.now());
-    }
-
-    if (!_isFirebaseAvailable) {
-      AppConfig.log('⚠️ Firebase not available, applying Hive lease rule');
-      return _hiveLeaseValid();
+    // ⭐ Windows: بديل محلي عندما لا يوجد جلسة سيرفر (غير مهيأ/غير متصل).
+    // عند وجود جلسة Firebase نشطة نُكمل للمسار السحابي (السيرفر أولاً).
+    if (!_isFirebaseAvailable || FirebaseAuth.instance.currentUser == null) {
+      if (PlatformHelper.isWindows) {
+        return db.getSubscriptionActive() &&
+            isSubscriptionValid(db.getSubscriptionEndDate(), DateTime.now());
+      }
+      if (!_isFirebaseAvailable) {
+        AppConfig.log('⚠️ Firebase not available, applying Hive lease rule');
+        return _hiveLeaseValid();
+      }
+      AppConfig.log('⚠️ No user logged in');
+      return false;
     }
 
     final userId = FirebaseAuth.instance.currentUser?.uid;

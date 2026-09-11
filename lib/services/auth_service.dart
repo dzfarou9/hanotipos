@@ -152,9 +152,10 @@ class AuthService {
       AppConfig.log('===== LOGIN STARTED =====');
       AppConfig.log('Phone: $phone');
 
-      // ⭐ Windows: تسجيل دخول محلي بلا Firebase
+      // ⭐ Windows: دخول سحابي أولاً حتى تعمل المزامنة، مع بديل محلي
+      // عند تعذر Firebase (غير مهيأ/غير متصل/لا يوجد حساب سحابي).
       if (PlatformHelper.isWindows) {
-        return _localSignIn(phone: phone, password: password);
+        return _windowsSignIn(phone: phone, password: password);
       }
 
       final firebaseService = FirebaseService();
@@ -211,8 +212,43 @@ class AuthService {
     try {
       AppConfig.log('===== REGISTRATION STARTED =====');
 
-      // ⭐ Windows: إنشاء حساب محلي بلا Firebase
+      // ⭐ Windows: إنشاء حساب سحابي أولاً (مزامنة بين الأجهزة)،
+      // مع بديل محلي عند تعذر Firebase.
       if (PlatformHelper.isWindows) {
+        final firebaseService = FirebaseService();
+        if (firebaseService.isFirebaseAvailable) {
+          try {
+            final credential =
+                await firebaseService.signUpWithPhoneAndPassword(
+              phone: phone,
+              fullName: fullName,
+              storeName: storeName,
+              password: password,
+            );
+            if (credential.user != null) {
+              final db = DatabaseService.instance;
+              await db.saveUserData(
+                userId: credential.user!.uid,
+                phone: phone,
+                fullName: fullName,
+                storeName: storeName,
+              );
+              // ⭐ حساب محلي احتياطي للدخول دون اتصال لاحقاً
+              final local = LocalAuthService();
+              if (!await local.hasLocalAccount()) {
+                await local.createLocalAccount(
+                  phone: phone,
+                  password: password,
+                );
+              }
+              AppConfig.log('✅ Cloud registration successful (Windows)');
+              return true;
+            }
+          } catch (e) {
+            AppConfig.logError(
+                '⚠️ Cloud registration failed on Windows, using local', e);
+          }
+        }
         final local = LocalAuthService();
         if (await local.hasLocalAccount()) {
           final ok = await local.verifyCredentials(
@@ -392,6 +428,50 @@ class AuthService {
       AppConfig.logError('⚠️ Subscription info error', e);
       return null;
     }
+  }
+
+  /// ⭐ Windows: دخول سحابي أولاً — يوقّع على Firebase Auth بنفس حساب
+  /// الهاتف (phone@hanoti.pos) فتشتغل المزامنة والاشتراك السحابي.
+  /// عند تعذر Firebase يُقبل الحساب المحلي المشفّر (Offline-First).
+  Future<bool> _windowsSignIn({
+    required String phone,
+    required String password,
+  }) async {
+    final firebaseService = FirebaseService();
+
+    if (firebaseService.isFirebaseAvailable) {
+      try {
+        final credential = await firebaseService.signInWithPhoneAndPassword(
+          phone: phone,
+          password: password,
+        );
+        if (credential.user != null) {
+          // ⭐ حساب محلي احتياطي للدخول دون اتصال لاحقاً.
+          // لا نستدعي _saveLocalSession هنا حتى لا نطغى على لقطة
+          // الاشتراك السحابية التي حفظها signIn للتو.
+          final local = LocalAuthService();
+          if (!await local.hasLocalAccount()) {
+            await local.createLocalAccount(phone: phone, password: password);
+          }
+          await SyncService().syncAfterLogin();
+          AppConfig.log('✅ Cloud login successful (Windows)');
+          return true;
+        }
+      } catch (e) {
+        AppConfig.logError('⚠️ Cloud login failed on Windows, trying local', e);
+      }
+    }
+
+    final local = LocalAuthService();
+    if (await local.hasLocalAccount()) {
+      final ok = await local.verifyCredentials(phone: phone, password: password);
+      if (!ok) throw Exception(LocalizationHelper.authLoginError);
+      await _saveLocalSession(phone: phone);
+      AppConfig.log('✅ Local login successful (Windows, offline fallback)');
+      return true;
+    }
+
+    return _localSignIn(phone: phone, password: password);
   }
 
   /// ⭐ Windows: دخول محلي — أول استخدام ينشئ الحساب، ما بعده يتحقق.
